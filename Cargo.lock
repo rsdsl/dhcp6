@@ -643,6 +643,7 @@ dependencies = [
  "serde_json",
  "socket2",
  "thiserror",
+ "trust-dns-proto",
 ]
 
 [[package]]
@@ -894,6 +895,7 @@ dependencies = [
  "smallvec",
  "thiserror",
  "tinyvec",
+ "tokio",
  "tracing",
  "url",
 ]
