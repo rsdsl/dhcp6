@@ -8,12 +8,13 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-use dhcproto::v6::{duid::Duid, DhcpOption, Message, MessageType, OptionCode, IAPD, ORO};
+use dhcproto::v6::{duid::Duid, DhcpOption, IAPrefix, Message, MessageType, OptionCode, IAPD, ORO};
 use dhcproto::{Decodable, Decoder, Encodable, Encoder, Name};
 use rsdsl_dhcp6::util::setsockopt;
 use rsdsl_dhcp6::{Error, Result};
 use rsdsl_ip_config::DsConfig;
 use rsdsl_netlinkd::link;
+use rsdsl_pd_config::PdConfig;
 use socket2::{Domain, SockAddr, Socket, Type};
 use trust_dns_proto::serialize::binary::BinDecodable;
 
@@ -215,6 +216,11 @@ fn handle_response(
 
             match *state {
                 State::Request(ref client_id, ..) => {
+                    // TODO: launch renewer
+                    let aftr = aftr.map(|v| v.to_utf8());
+
+                    update_pdconfig(ia_prefix, &aftr);
+
                     println!(
                         " <- [{}] confirm pd {}/{} valid {} pref {}, aftr {}",
                         remote,
@@ -222,7 +228,7 @@ fn handle_response(
                         ia_prefix.prefix_len,
                         ia_prefix.valid_lifetime,
                         ia_prefix.preferred_lifetime,
-                        aftr.map(|v| v.to_utf8()).unwrap_or("unset".into())
+                        aftr.unwrap_or("unset".into())
                     );
                     *state = State::Active(client_id.clone(), remote);
                 }
@@ -323,4 +329,30 @@ fn send_to_exact(sock: &Socket, buf: &[u8], dst: &SockAddr) -> Result<()> {
     } else {
         Ok(())
     }
+}
+
+fn update_pdconfig(ia_prefix: &IAPrefix, aftr: &Option<String>) {
+    match write_pdconfig(ia_prefix, aftr) {
+        Ok(_) => println!("<-> write pd config to {}", rsdsl_pd_config::LOCATION),
+        Err(e) => println!(
+            "<-> can't write pd config to {}: {}",
+            rsdsl_pd_config::LOCATION,
+            e
+        ),
+    }
+}
+
+fn write_pdconfig(ia_prefix: &IAPrefix, aftr: &Option<String>) -> Result<()> {
+    let pdconfig = PdConfig {
+        prefix: ia_prefix.prefix_ip,
+        len: ia_prefix.prefix_len,
+        validlft: ia_prefix.valid_lifetime,
+        preflft: ia_prefix.preferred_lifetime,
+        aftr: aftr.clone(),
+    };
+
+    let mut file = File::create(rsdsl_pd_config::LOCATION)?;
+    serde_json::to_writer_pretty(&mut file, &pdconfig)?;
+
+    Ok(())
 }

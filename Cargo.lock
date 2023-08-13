@@ -640,6 +640,7 @@ dependencies = [
  "rand",
  "rsdsl_ip_config",
  "rsdsl_netlinkd",
+ "rsdsl_pd_config",
  "serde_json",
  "socket2",
  "thiserror",
@@ -667,6 +668,14 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tokio",
+]
+
+[[package]]
+name = "rsdsl_pd_config"
+version = "0.1.0"
+source = "git+https://github.com/rsdsl/pd_config.git#98ee1876a08a1c3844d0b439a8ba52e5b3423810"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
