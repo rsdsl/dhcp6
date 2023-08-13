@@ -4,6 +4,8 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
+    #[error("no domain name servers")]
+    NoDns,
     #[error("no ia_pd")]
     NoIAPD,
     #[error("no ia_pd status code")]
@@ -14,6 +16,8 @@ pub enum Error {
     NoServerId,
     #[error("incomplete transmission")]
     PartialSend,
+    #[error("too few domain name servers (got {0}, need at least 2)")]
+    TooFewDns(usize),
 
     #[error("parse address: {0}")]
     AddrParse(#[from] net::AddrParseError),

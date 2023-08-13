@@ -1,7 +1,7 @@
 use std::ffi::CString;
 use std::fs::File;
 use std::mem::MaybeUninit;
-use std::net::{SocketAddr, SocketAddrV6};
+use std::net::{Ipv6Addr, SocketAddr, SocketAddrV6};
 use std::os::fd::AsRawFd;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
@@ -151,6 +151,18 @@ fn handle_response(
                 _ => unreachable!(),
             };
 
+            let dnss = match opts
+                .get(OptionCode::DomainNameServers)
+                .ok_or(Error::NoDns)?
+            {
+                DhcpOption::DomainNameServers(dnss) => dnss,
+                _ => unreachable!(),
+            };
+
+            if dnss.len() < 2 {
+                return Err(Error::TooFewDns(dnss.len()));
+            }
+
             match *state {
                 State::Solicit(ref client_id) => {
                     let mut request = Message::new_with_id(MessageType::Request, msg.xid());
@@ -160,7 +172,7 @@ fn handle_response(
                     opts.insert(DhcpOption::ServerId(server_id.clone()));
                     opts.insert(DhcpOption::IAPD(ia_pd.clone()));
                     opts.insert(DhcpOption::ORO(ORO {
-                        opts: vec![OptionCode::AftrName],
+                        opts: vec![OptionCode::AftrName, OptionCode::DomainNameServers],
                     }));
 
                     let mut request_buf = Vec::new();
@@ -169,16 +181,18 @@ fn handle_response(
                     send_to_exact(sock, &request_buf, &remote.into())?;
 
                     println!(
-                        " <- [{}] advertise pd {}/{} valid {} pref {}, aftr {}",
+                        " <- [{}] advertise pd {}/{} valid {} pref {}, dns1 {}, dns2 {}, aftr {}",
                         remote,
                         ia_prefix.prefix_ip,
                         ia_prefix.prefix_len,
                         ia_prefix.valid_lifetime,
                         ia_prefix.preferred_lifetime,
+                        dnss[0],
+                        dnss[1],
                         aftr.map(|v| v.to_utf8()).unwrap_or("unset".into())
                     );
                     println!(
-                        " -> [{}] request 0/{} pd {} aftr",
+                        " -> [{}] request 0/{} pd {}, dns, aftr",
                         remote, MAX_ATTEMPTS, ia_pd.id
                     );
 
@@ -223,17 +237,31 @@ fn handle_response(
                 _ => unreachable!(),
             };
 
+            let dnss = match opts
+                .get(OptionCode::DomainNameServers)
+                .ok_or(Error::NoDns)?
+            {
+                DhcpOption::DomainNameServers(dnss) => dnss,
+                _ => unreachable!(),
+            };
+
+            if dnss.len() < 2 {
+                return Err(Error::TooFewDns(dnss.len()));
+            }
+
             match *state {
                 State::Request(ref client_id, ..) => {
                     let aftr = aftr.map(|v| v.to_utf8());
 
                     println!(
-                        " <- [{}] reply pd {}/{} valid {} pref {}, aftr {}",
+                        " <- [{}] reply pd {}/{} valid {} pref {}, dns1 {}, dns2 {}, aftr {}",
                         remote,
                         ia_prefix.prefix_ip,
                         ia_prefix.prefix_len,
                         ia_prefix.valid_lifetime,
                         ia_prefix.preferred_lifetime,
+                        dnss[0],
+                        dnss[1],
                         aftr.clone().unwrap_or("unset".into())
                     );
                     *state = State::Active(
@@ -245,15 +273,17 @@ fn handle_response(
                         ia_pd.t1,
                     );
 
-                    update_pdconfig(ia_prefix, &aftr);
+                    update_pdconfig(ia_prefix, dnss, &aftr);
                 }
                 State::Renew(ref client_id, ..) => {
                     let aftr = aftr.map(|v| v.to_utf8());
 
                     println!(
-                        " <- [{}] reply renew pd {}, aftr {}",
+                        " <- [{}] reply renew pd {}, dns1 {}, dns2 {}, aftr {}",
                         remote,
                         ia_pd.id,
+                        dnss[0],
+                        dnss[1],
                         aftr.clone().unwrap_or("unset".into())
                     );
                     *state = State::Active(
@@ -302,7 +332,7 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
                 opts: Default::default(),
             }));
             opts.insert(DhcpOption::ORO(ORO {
-                opts: vec![OptionCode::AftrName],
+                opts: vec![OptionCode::AftrName, OptionCode::DomainNameServers],
             }));
 
             let mut solicit_buf = Vec::new();
@@ -310,7 +340,7 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
 
             send_to_exact(sock, &solicit_buf, &dst.into())?;
 
-            println!(" -> [{}] solicit pd 1 aftr", dst);
+            println!(" -> [{}] solicit pd 1, dns, aftr", dst);
             Ok(())
         }
         State::Request(ref client_id, ref server_id, xid, dst, ref ia_pd, n) => {
@@ -328,7 +358,7 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
             opts.insert(DhcpOption::ServerId(server_id.clone()));
             opts.insert(DhcpOption::IAPD(ia_pd.clone()));
             opts.insert(DhcpOption::ORO(ORO {
-                opts: vec![OptionCode::AftrName],
+                opts: vec![OptionCode::AftrName, OptionCode::DomainNameServers],
             }));
 
             let mut request_buf = Vec::new();
@@ -337,7 +367,7 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
             send_to_exact(sock, &request_buf, &dst.into())?;
 
             println!(
-                " -> [{}] request {}/{} pd {} aftr",
+                " -> [{}] request {}/{} pd {}, dns, aftr",
                 dst, n, MAX_ATTEMPTS, ia_pd.id
             );
 
@@ -374,7 +404,7 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
             opts.insert(DhcpOption::ServerId(server_id.clone()));
             opts.insert(DhcpOption::IAPD(ia_pd.clone()));
             opts.insert(DhcpOption::ORO(ORO {
-                opts: vec![OptionCode::AftrName],
+                opts: vec![OptionCode::AftrName, OptionCode::DomainNameServers],
             }));
 
             let mut renew_buf = Vec::new();
@@ -383,7 +413,7 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
             send_to_exact(sock, &renew_buf, &dst.into())?;
 
             println!(
-                " -> [{}] renew {}/{} pd {} aftr",
+                " -> [{}] renew {}/{} pd {}, dns, aftr",
                 dst, n, MAX_ATTEMPTS, ia_pd.id
             );
 
@@ -408,8 +438,8 @@ fn send_to_exact(sock: &Socket, buf: &[u8], dst: &SockAddr) -> Result<()> {
     }
 }
 
-fn update_pdconfig(ia_prefix: &IAPrefix, aftr: &Option<String>) {
-    match write_pdconfig(ia_prefix, aftr) {
+fn update_pdconfig(ia_prefix: &IAPrefix, dnss: &[Ipv6Addr], aftr: &Option<String>) {
+    match write_pdconfig(ia_prefix, dnss, aftr) {
         Ok(_) => println!("<-> write pd config to {}", rsdsl_pd_config::LOCATION),
         Err(e) => println!(
             "<-> can't write pd config to {}: {}",
@@ -419,12 +449,14 @@ fn update_pdconfig(ia_prefix: &IAPrefix, aftr: &Option<String>) {
     }
 }
 
-fn write_pdconfig(ia_prefix: &IAPrefix, aftr: &Option<String>) -> Result<()> {
+fn write_pdconfig(ia_prefix: &IAPrefix, dnss: &[Ipv6Addr], aftr: &Option<String>) -> Result<()> {
     let pdconfig = PdConfig {
         prefix: ia_prefix.prefix_ip,
         len: ia_prefix.prefix_len,
         validlft: ia_prefix.valid_lifetime,
         preflft: ia_prefix.preferred_lifetime,
+        dns1: dnss[0], // Bounds checked by packet handler.
+        dns2: dnss[1], // Bounds checked by packet handler.
         aftr: aftr.clone(),
     };
 
