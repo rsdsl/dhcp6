@@ -23,7 +23,7 @@ const MAX_ATTEMPTS: usize = 4;
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum State {
     Solicit(Vec<u8>),
-    Request(Vec<u8>, SocketAddrV6, IAPD, usize),
+    Request(Vec<u8>, [u8; 3], SocketAddrV6, IAPD, usize),
     Active(Vec<u8>, SocketAddrV6),
     Renew(Vec<u8>, SocketAddrV6),
 }
@@ -143,7 +143,7 @@ fn handle_response(
 
             match *state {
                 State::Solicit(ref client_id) => {
-                    let mut request = Message::new(MessageType::Request);
+                    let mut request = Message::new_with_id(MessageType::Request, msg.xid());
                     let opts = request.opts_mut();
 
                     opts.insert(DhcpOption::ClientId(client_id.clone()));
@@ -171,7 +171,7 @@ fn handle_response(
                         remote, MAX_ATTEMPTS, ia_pd.id
                     );
 
-                    *state = State::Request(client_id.clone(), remote, ia_pd.clone(), 1);
+                    *state = State::Request(client_id.clone(), msg.xid(), remote, ia_pd.clone(), 1);
                 }
                 _ => println!(" <- [{}] unexpected advertise from", remote),
             }
@@ -210,7 +210,7 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
             println!(" -> solicit pd 1 aftr");
             Ok(())
         }
-        State::Request(ref client_id, dst, ref ia_pd, n) => {
+        State::Request(ref client_id, xid, dst, ref ia_pd, n) => {
             if n >= MAX_ATTEMPTS {
                 *state = State::Solicit(client_id.clone());
 
@@ -218,7 +218,7 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
                 return Ok(());
             }
 
-            let mut request = Message::new(MessageType::Request);
+            let mut request = Message::new_with_id(MessageType::Request, xid);
             let opts = request.opts_mut();
 
             opts.insert(DhcpOption::ClientId(client_id.clone()));
@@ -234,7 +234,7 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
 
             println!(" -> request {}/{}, pd {} aftr", n, MAX_ATTEMPTS, ia_pd.id);
 
-            *state = State::Request(client_id.clone(), dst, ia_pd.clone(), n + 1);
+            *state = State::Request(client_id.clone(), xid, dst, ia_pd.clone(), n + 1);
             Ok(())
         }
         _ => todo!(),
