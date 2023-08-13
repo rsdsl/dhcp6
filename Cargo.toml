@@ -10,7 +10,7 @@ dhcproto = "0.9.0"
 libc = "0.2.147"
 rand = "0.8.5"
 rsdsl_ip_config = { git = "https://github.com/rsdsl/ip_config.git", version = "0.2.2" }
-rsdsl_netlinkd = { git = "https://github.com/rsdsl/netlinkd.git", version = "0.6.0" }
+rsdsl_netlinkd = { git = "https://github.com/rsdsl/netlinkd.git", version = "0.6.1" }
 rsdsl_pd_config = { git = "https://github.com/rsdsl/pd_config.git", version = "0.1.0" }
 serde_json = "1.0"
 socket2 = "0.5.3"
