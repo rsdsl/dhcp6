@@ -25,9 +25,8 @@ const MAX_ATTEMPTS: usize = 4;
 enum State {
     Solicit(Vec<u8>),
     Request(Vec<u8>, Vec<u8>, [u8; 3], SocketAddrV6, IAPD, usize),
-    Active(Vec<u8>, SocketAddrV6, Instant, u32),
-    Renew(Vec<u8>, SocketAddrV6),
-    Renew2(Vec<u8>),
+    Active(Vec<u8>, Vec<u8>, SocketAddrV6, IAPD, Instant, u32),
+    Renew(Vec<u8>, Vec<u8>, SocketAddrV6, IAPD, usize),
 }
 
 impl Default for State {
@@ -194,6 +193,11 @@ fn handle_response(
         MessageType::Reply => {
             let opts = msg.opts();
 
+            let server_id = match opts.get(OptionCode::ServerId).ok_or(Error::NoServerId)? {
+                DhcpOption::ServerId(server_id) => server_id,
+                _ => unreachable!(),
+            };
+
             let aftr = opts.get(OptionCode::AftrName).map(|v| match v {
                 DhcpOption::Unknown(unk) => {
                     Name::from_bytes(unk.data()).expect("invalid aftr name format")
@@ -217,7 +221,6 @@ fn handle_response(
 
             match *state {
                 State::Request(ref client_id, ..) => {
-                    // TODO: launch renewer
                     let aftr = aftr.map(|v| v.to_utf8());
 
                     update_pdconfig(ia_prefix, &aftr);
@@ -231,7 +234,34 @@ fn handle_response(
                         ia_prefix.preferred_lifetime,
                         aftr.unwrap_or("unset".into())
                     );
-                    *state = State::Active(client_id.clone(), remote, Instant::now(), ia_pd.t1);
+                    *state = State::Active(
+                        client_id.clone(),
+                        server_id.clone(),
+                        remote,
+                        ia_pd.clone(),
+                        Instant::now(),
+                        ia_pd.t1,
+                    );
+                }
+                State::Renew(ref client_id, ..) => {
+                    let aftr = aftr.map(|v| v.to_utf8());
+
+                    update_pdconfig(ia_prefix, &aftr);
+
+                    println!(
+                        " <- [{}] reply renew pd {}, aftr {}",
+                        remote,
+                        ia_pd.id,
+                        aftr.unwrap_or("unset".into())
+                    );
+                    *state = State::Active(
+                        client_id.clone(),
+                        server_id.clone(),
+                        remote,
+                        ia_pd.clone(),
+                        Instant::now(),
+                        ia_pd.t1,
+                    );
                 }
                 _ => println!(" <- [{}] unexpected reply", remote),
             }
@@ -242,13 +272,12 @@ fn handle_response(
                 State::Request(ref client_id, ..) => client_id,
                 State::Active(ref client_id, ..) => client_id,
                 State::Renew(ref client_id, ..) => client_id,
-                State::Renew2(ref client_id) => client_id,
             };
 
             *state = State::Solicit(client_id.clone());
             println!(" <- [{}] decline", remote);
         }
-        _ => todo!(),
+        _ => println!(" <- [{}] invalid message type {:?}", remote, msg.msg_type()),
     }
 
     Ok(())
@@ -320,14 +349,51 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
             );
             Ok(())
         }
-        State::Active(ref client_id, dst, recv, t1) => {
-            if Instant::now().duration_since(recv).as_secs() >= t1.into() {
-                *state = State::Renew(client_id.clone(), dst);
+        State::Active(ref client_id, ref server_id, dst, ref ia_pd, recv, t1) => {
+            // Subtraction accounts for delay causey by loop interval.
+            if Instant::now().duration_since(recv).as_secs() >= (t1 - 3).into() {
+                *state = State::Renew(client_id.clone(), server_id.clone(), dst, ia_pd.clone(), 0);
             }
 
             Ok(())
         }
-        _ => todo!(),
+        State::Renew(ref client_id, ref server_id, dst, ref ia_pd, n) => {
+            if n >= MAX_ATTEMPTS {
+                *state = State::Solicit(client_id.clone());
+
+                println!("<-> renew retransmission maximum exceeded");
+                return Ok(());
+            }
+
+            let mut renew = Message::new(MessageType::Renew);
+            let opts = renew.opts_mut();
+
+            opts.insert(DhcpOption::ClientId(client_id.clone()));
+            opts.insert(DhcpOption::ServerId(server_id.clone()));
+            opts.insert(DhcpOption::IAPD(ia_pd.clone()));
+            opts.insert(DhcpOption::ORO(ORO {
+                opts: vec![OptionCode::AftrName],
+            }));
+
+            let mut renew_buf = Vec::new();
+            renew.encode(&mut Encoder::new(&mut renew_buf))?;
+
+            send_to_exact(sock, &renew_buf, &dst.into())?;
+
+            println!(
+                " -> [{}] renew {}/{} pd {} aftr",
+                dst, n, MAX_ATTEMPTS, ia_pd.id
+            );
+
+            *state = State::Renew(
+                client_id.clone(),
+                server_id.clone(),
+                dst,
+                ia_pd.clone(),
+                n + 1,
+            );
+            Ok(())
+        }
     }
 }
 
