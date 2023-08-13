@@ -223,8 +223,6 @@ fn handle_response(
                 State::Request(ref client_id, ..) => {
                     let aftr = aftr.map(|v| v.to_utf8());
 
-                    update_pdconfig(ia_prefix, &aftr);
-
                     println!(
                         " <- [{}] reply pd {}/{} valid {} pref {}, aftr {}",
                         remote,
@@ -242,11 +240,11 @@ fn handle_response(
                         Instant::now(),
                         ia_pd.t1,
                     );
+
+                    update_pdconfig(ia_prefix, &aftr);
                 }
                 State::Renew(ref client_id, ..) => {
                     let aftr = aftr.map(|v| v.to_utf8());
-
-                    update_pdconfig(ia_prefix, &aftr);
 
                     println!(
                         " <- [{}] reply renew pd {}, aftr {}",
@@ -262,6 +260,8 @@ fn handle_response(
                         Instant::now(),
                         ia_pd.t1,
                     );
+
+                    update_pdconfig(ia_prefix, &aftr);
                 }
                 _ => println!(" <- [{}] unexpected reply", remote),
             }
