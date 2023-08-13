@@ -23,7 +23,7 @@ const MAX_ATTEMPTS: usize = 4;
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum State {
     Solicit(Vec<u8>),
-    Request(Vec<u8>, [u8; 3], SocketAddrV6, IAPD, usize),
+    Request(Vec<u8>, Vec<u8>, [u8; 3], SocketAddrV6, IAPD, usize),
     Active(Vec<u8>, SocketAddrV6),
     Renew(Vec<u8>, SocketAddrV6),
 }
@@ -120,6 +120,11 @@ fn handle_response(
         MessageType::Advertise => {
             let opts = msg.opts();
 
+            let server_id = match opts.get(OptionCode::ServerId).ok_or(Error::NoServerId)? {
+                DhcpOption::ServerId(server_id) => server_id,
+                _ => unreachable!(),
+            };
+
             let aftr = opts.get(OptionCode::AftrName).map(|v| match v {
                 DhcpOption::Unknown(unk) => {
                     Name::from_bytes(unk.data()).expect("invalid aftr name format")
@@ -171,7 +176,14 @@ fn handle_response(
                         remote, MAX_ATTEMPTS, ia_pd.id
                     );
 
-                    *state = State::Request(client_id.clone(), msg.xid(), remote, ia_pd.clone(), 1);
+                    *state = State::Request(
+                        client_id.clone(),
+                        server_id.clone(),
+                        msg.xid(),
+                        remote,
+                        ia_pd.clone(),
+                        1,
+                    );
                 }
                 _ => println!(" <- [{}] unexpected advertise from", remote),
             }
@@ -221,7 +233,7 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
             println!(" -> solicit pd 1 aftr");
             Ok(())
         }
-        State::Request(ref client_id, xid, dst, ref ia_pd, n) => {
+        State::Request(ref client_id, ref server_id, xid, dst, ref ia_pd, n) => {
             if n >= MAX_ATTEMPTS {
                 *state = State::Solicit(client_id.clone());
 
@@ -245,7 +257,14 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
 
             println!(" -> request {}/{}, pd {} aftr", n, MAX_ATTEMPTS, ia_pd.id);
 
-            *state = State::Request(client_id.clone(), xid, dst, ia_pd.clone(), n + 1);
+            *state = State::Request(
+                client_id.clone(),
+                server_id.clone(),
+                xid,
+                dst,
+                ia_pd.clone(),
+                n + 1,
+            );
             Ok(())
         }
         _ => todo!(),

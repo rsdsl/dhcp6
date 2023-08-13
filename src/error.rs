@@ -10,6 +10,8 @@ pub enum Error {
     NoIAPDStatus,
     #[error("no ia_prefix")]
     NoIAPrefix,
+    #[error("no server duid")]
+    NoServerId,
     #[error("incomplete transmission")]
     PartialSend,
 
