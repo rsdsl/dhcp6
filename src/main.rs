@@ -260,8 +260,6 @@ fn handle_response(
                         Instant::now(),
                         ia_pd.t1,
                     );
-
-                    update_pdconfig(ia_prefix, &aftr);
                 }
                 _ => println!(" <- [{}] unexpected reply", remote),
             }
