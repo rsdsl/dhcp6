@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-use dhcproto::v6::{DhcpOption, Message, MessageType, IAPD};
+use dhcproto::v6::{DhcpOption, Message, MessageType, OptionCode, IAPD, ORO};
 use dhcproto::{Decodable, Decoder, Encodable, Encoder};
 use rsdsl_dhcp6::util::setsockopt;
 use rsdsl_dhcp6::{Error, Result};
@@ -127,11 +127,14 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
                 t2: 0,
                 opts: Default::default(),
             }));
+            opts.insert(DhcpOption::ORO(ORO {
+                opts: vec![OptionCode::AftrName],
+            }));
 
             let mut req_buf = Vec::new();
             req.encode(&mut Encoder::new(&mut req_buf))?;
 
-            sock.send_to(&req_buf, &dst.into())?;
+            send_to_exact(sock, &req_buf, &dst.into())?;
 
             println!("solicit pd 1 aftr");
             Ok(())
