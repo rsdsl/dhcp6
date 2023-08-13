@@ -6,7 +6,7 @@ use std::os::fd::AsRawFd;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use dhcproto::v6::{duid::Duid, DhcpOption, IAPrefix, Message, MessageType, OptionCode, IAPD, ORO};
 use dhcproto::{Decodable, Decoder, Encodable, Encoder, Name};
@@ -25,8 +25,9 @@ const MAX_ATTEMPTS: usize = 4;
 enum State {
     Solicit(Vec<u8>),
     Request(Vec<u8>, Vec<u8>, [u8; 3], SocketAddrV6, IAPD, usize),
-    Active(Vec<u8>, SocketAddrV6),
+    Active(Vec<u8>, SocketAddrV6, Instant, u32),
     Renew(Vec<u8>, SocketAddrV6),
+    Renew2(Vec<u8>),
 }
 
 impl Default for State {
@@ -230,7 +231,7 @@ fn handle_response(
                         ia_prefix.preferred_lifetime,
                         aftr.unwrap_or("unset".into())
                     );
-                    *state = State::Active(client_id.clone(), remote);
+                    *state = State::Active(client_id.clone(), remote, Instant::now(), ia_pd.t1);
                 }
                 _ => println!(" <- [{}] unexpected reply", remote),
             }
@@ -241,6 +242,7 @@ fn handle_response(
                 State::Request(ref client_id, ..) => client_id,
                 State::Active(ref client_id, ..) => client_id,
                 State::Renew(ref client_id, ..) => client_id,
+                State::Renew2(ref client_id) => client_id,
             };
 
             *state = State::Solicit(client_id.clone());
@@ -316,6 +318,13 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
                 ia_pd.clone(),
                 n + 1,
             );
+            Ok(())
+        }
+        State::Active(ref client_id, dst, recv, t1) => {
+            if Instant::now().duration_since(recv).as_secs() >= t1.into() {
+                *state = State::Renew(client_id.clone(), dst);
+            }
+
             Ok(())
         }
         _ => todo!(),
