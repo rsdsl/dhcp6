@@ -176,6 +176,17 @@ fn handle_response(
                 _ => println!(" <- [{}] unexpected advertise from", remote),
             }
         }
+        MessageType::Decline => {
+            let client_id = match *state {
+                State::Solicit(ref client_id) => client_id,
+                State::Request(ref client_id, ..) => client_id,
+                State::Active(ref client_id, ..) => client_id,
+                State::Renew(ref client_id, ..) => client_id,
+            };
+
+            *state = State::Solicit(client_id.clone());
+            println!(" <- [{}] decline", remote);
+        }
         _ => todo!(),
     }
 
