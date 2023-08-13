@@ -231,7 +231,7 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
 
             send_to_exact(sock, &solicit_buf, &dst.into())?;
 
-            println!(" -> solicit pd 1 aftr");
+            println!(" -> [{}] solicit pd 1 aftr", dst);
             Ok(())
         }
         State::Request(ref client_id, ref server_id, xid, dst, ref ia_pd, n) => {
@@ -257,7 +257,10 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
 
             send_to_exact(sock, &request_buf, &dst.into())?;
 
-            println!(" -> request {}/{} pd {} aftr", n, MAX_ATTEMPTS, ia_pd.id);
+            println!(
+                " -> [{}] request {}/{} pd {} aftr",
+                dst, n, MAX_ATTEMPTS, ia_pd.id
+            );
 
             *state = State::Request(
                 client_id.clone(),
