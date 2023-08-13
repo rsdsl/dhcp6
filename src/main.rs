@@ -184,8 +184,8 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
         State::Solicit(ref client_id) => {
             let dst: SocketAddrV6 = "[ff02::1:2]:547".parse()?;
 
-            let mut req = Message::new(MessageType::Solicit);
-            let opts = req.opts_mut();
+            let mut solicit = Message::new(MessageType::Solicit);
+            let opts = solicit.opts_mut();
 
             opts.insert(DhcpOption::ClientId(client_id.clone()));
             opts.insert(DhcpOption::IAPD(IAPD {
@@ -198,10 +198,10 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
                 opts: vec![OptionCode::AftrName],
             }));
 
-            let mut req_buf = Vec::new();
-            req.encode(&mut Encoder::new(&mut req_buf))?;
+            let mut solicit_buf = Vec::new();
+            solicit.encode(&mut Encoder::new(&mut solicit_buf))?;
 
-            send_to_exact(sock, &req_buf, &dst.into())?;
+            send_to_exact(sock, &solicit_buf, &dst.into())?;
 
             println!(" -> solicit pd 1 aftr");
             Ok(())
