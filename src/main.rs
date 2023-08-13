@@ -230,7 +230,7 @@ fn handle_response(
                         ia_prefix.prefix_len,
                         ia_prefix.valid_lifetime,
                         ia_prefix.preferred_lifetime,
-                        aftr.unwrap_or("unset".into())
+                        aftr.clone().unwrap_or("unset".into())
                     );
                     *state = State::Active(
                         client_id.clone(),
@@ -250,7 +250,7 @@ fn handle_response(
                         " <- [{}] reply renew pd {}, aftr {}",
                         remote,
                         ia_pd.id,
-                        aftr.unwrap_or("unset".into())
+                        aftr.clone().unwrap_or("unset".into())
                     );
                     *state = State::Active(
                         client_id.clone(),
