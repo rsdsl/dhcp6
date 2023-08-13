@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-use dhcproto::v6::{DhcpOption, Message, MessageType, OptionCode, IAPD, ORO};
+use dhcproto::v6::{duid::Duid, DhcpOption, Message, MessageType, OptionCode, IAPD, ORO};
 use dhcproto::{Decodable, Decoder, Encodable, Encoder};
 use rsdsl_dhcp6::util::setsockopt;
 use rsdsl_dhcp6::{Error, Result};
@@ -28,7 +28,11 @@ enum State {
 
 impl Default for State {
     fn default() -> Self {
-        Self::Solicit(rand::random::<u128>().to_be_bytes().to_vec())
+        Self::Solicit(
+            Duid::uuid(&rand::random::<u128>().to_be_bytes())
+                .as_ref()
+                .to_vec(),
+        )
     }
 }
 
