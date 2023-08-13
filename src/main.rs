@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-use dhcproto::v6::{duid::Duid, DhcpOption, Message, MessageType, OptionCode, Status, IAPD, ORO};
+use dhcproto::v6::{duid::Duid, DhcpOption, Message, MessageType, OptionCode, IAPD, ORO};
 use dhcproto::{Decodable, Decoder, Encodable, Encoder, Name};
 use rsdsl_dhcp6::util::setsockopt;
 use rsdsl_dhcp6::{Error, Result};
@@ -130,19 +130,6 @@ fn handle_response(
                 DhcpOption::IAPD(ia_pd) => ia_pd,
                 _ => unreachable!(),
             };
-
-            let status = match ia_pd
-                .opts
-                .get(OptionCode::StatusCode)
-                .ok_or(Error::NoIAPDStatus)?
-            {
-                DhcpOption::StatusCode(status) => status,
-                _ => unreachable!(),
-            };
-
-            if status.status != Status::Success {
-                return Err(Error::UnsuccessfulPd(status.status));
-            }
 
             let ia_prefix = match ia_pd
                 .opts

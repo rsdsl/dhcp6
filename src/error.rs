@@ -1,6 +1,5 @@
 use std::{ffi, io, net};
 
-use dhcproto::v6::Status;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -13,8 +12,6 @@ pub enum Error {
     NoIAPrefix,
     #[error("incomplete transmission")]
     PartialSend,
-    #[error("unsuccessful pd status code")]
-    UnsuccessfulPd(Status),
 
     #[error("parse address: {0}")]
     AddrParse(#[from] net::AddrParseError),
