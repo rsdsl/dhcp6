@@ -190,7 +190,7 @@ fn handle_response(
                 _ => println!(" <- [{}] unexpected advertise", remote),
             }
         }
-        MessageType::Confirm => {
+        MessageType::Reply => {
             let opts = msg.opts();
 
             let aftr = opts.get(OptionCode::AftrName).map(|v| match v {
@@ -222,7 +222,7 @@ fn handle_response(
                     update_pdconfig(ia_prefix, &aftr);
 
                     println!(
-                        " <- [{}] confirm pd {}/{} valid {} pref {}, aftr {}",
+                        " <- [{}] reply pd {}/{} valid {} pref {}, aftr {}",
                         remote,
                         ia_prefix.prefix_ip,
                         ia_prefix.prefix_len,
@@ -232,7 +232,7 @@ fn handle_response(
                     );
                     *state = State::Active(client_id.clone(), remote);
                 }
-                _ => println!(" <- [{}] unexpected confirm", remote),
+                _ => println!(" <- [{}] unexpected reply", remote),
             }
         }
         MessageType::Decline => {
