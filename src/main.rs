@@ -114,7 +114,7 @@ fn handle_response(
 ) -> Result<()> {
     let msg = Message::decode(&mut Decoder::new(buf))?;
 
-    let state = state.lock().expect("state mutex is poisoned");
+    let mut state = state.lock().expect("state mutex is poisoned");
     match msg.msg_type() {
         MessageType::Advertise => {
             let opts = msg.opts();
@@ -141,16 +141,35 @@ fn handle_response(
             };
 
             match *state {
-                State::Solicit(..) => println!(
-                    " <- advertise from {} pd {}/{} valid {} pref {}, aftr {}",
-                    remote,
-                    ia_prefix.prefix_ip,
-                    ia_prefix.prefix_len,
-                    ia_prefix.valid_lifetime,
-                    ia_prefix.preferred_lifetime,
-                    aftr.map(|v| v.to_utf8()).unwrap_or("unset".into())
-                ),
-                _ => println!(" <- unexpected advertise from {}", remote),
+                State::Solicit(ref client_id) => {
+                    let mut request = Message::new(MessageType::Request);
+                    let opts = request.opts_mut();
+
+                    opts.insert(DhcpOption::ClientId(client_id.clone()));
+                    opts.insert(DhcpOption::IAPD(ia_pd.clone()));
+                    opts.insert(DhcpOption::ORO(ORO {
+                        opts: vec![OptionCode::AftrName],
+                    }));
+
+                    let mut request_buf = Vec::new();
+                    request.encode(&mut Encoder::new(&mut request_buf))?;
+
+                    send_to_exact(sock, &request_buf, &remote.into())?;
+
+                    *state = State::Request(client_id.clone(), remote);
+
+                    println!(
+                        " <- [{}] advertise pd {}/{} valid {} pref {}, aftr {}",
+                        remote,
+                        ia_prefix.prefix_ip,
+                        ia_prefix.prefix_len,
+                        ia_prefix.valid_lifetime,
+                        ia_prefix.preferred_lifetime,
+                        aftr.map(|v| v.to_utf8()).unwrap_or("unset".into())
+                    );
+                    println!(" -> [{}] request pd 1 aftr", remote);
+                }
+                _ => println!(" <- [{}] unexpected advertise from", remote),
             }
         }
         _ => todo!(),
