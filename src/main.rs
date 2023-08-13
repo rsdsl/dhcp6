@@ -81,9 +81,11 @@ fn main() -> Result<()> {
     let state2 = state.clone();
     thread::spawn(move || loop {
         match tick(&sock2, state2.clone()) {
-            Ok(_) => thread::sleep(Duration::from_secs(3)),
+            Ok(_) => {}
             Err(e) => println!("can't tick on ppp0: {}", e),
         }
+
+        thread::sleep(Duration::from_secs(3));
     });
 
     loop {
@@ -97,20 +99,23 @@ fn main() -> Result<()> {
 
         let remote = remote.as_socket_ipv6().unwrap();
 
-        match handle_response(&sock, buf, state.clone()) {
+        match handle_response(&sock, buf, remote, state.clone()) {
             Ok(_) => {}
             Err(e) => println!("can't handle pkt from {} on ppp0: {}", remote, e),
         }
     }
 }
 
-fn handle_response(sock: &Socket, buf: &[u8], state: Arc<Mutex<State>>) -> Result<()> {
-    let dst: SocketAddrV6 = "[ff02::1:2]:547".parse()?;
-
+fn handle_response(
+    sock: &Socket,
+    buf: &[u8],
+    remote: SocketAddrV6,
+    state: Arc<Mutex<State>>,
+) -> Result<()> {
     let msg = Message::decode(&mut Decoder::new(buf))?;
 
-    let typ = msg.msg_type();
-    match typ {
+    let state = state.lock().expect("state mutex is poisoned");
+    match msg.msg_type() {
         MessageType::Advertise => {
             let opts = msg.opts();
 
@@ -148,14 +153,18 @@ fn handle_response(sock: &Socket, buf: &[u8], state: Arc<Mutex<State>>) -> Resul
                 _ => unreachable!(),
             };
 
-            println!(
-                " <- advertise pd {}/{} valid {} pref {}, aftr {}",
-                ia_prefix.prefix_ip,
-                ia_prefix.prefix_len,
-                ia_prefix.valid_lifetime,
-                ia_prefix.preferred_lifetime,
-                aftr.map(|v| v.to_utf8()).unwrap_or("unset".into())
-            );
+            match *state {
+                State::Solicit(..) => println!(
+                    " <- advertise from {} pd {}/{} valid {} pref {}, aftr {}",
+                    remote,
+                    ia_prefix.prefix_ip,
+                    ia_prefix.prefix_len,
+                    ia_prefix.valid_lifetime,
+                    ia_prefix.preferred_lifetime,
+                    aftr.map(|v| v.to_utf8()).unwrap_or("unset".into())
+                ),
+                _ => println!(" <- unexpected advertise from {}", remote),
+            }
         }
         _ => todo!(),
     }
