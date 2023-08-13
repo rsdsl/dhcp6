@@ -18,11 +18,12 @@ use socket2::{Domain, SockAddr, Socket, Type};
 use trust_dns_proto::serialize::binary::BinDecodable;
 
 const BUFSIZE: usize = 1500;
+const MAX_ATTEMPTS: usize = 4;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum State {
     Solicit(Vec<u8>),
-    Request(Vec<u8>, SocketAddrV6, IAPD),
+    Request(Vec<u8>, SocketAddrV6, IAPD, usize),
     Active(Vec<u8>, SocketAddrV6),
     Renew(Vec<u8>, SocketAddrV6),
 }
@@ -156,8 +157,6 @@ fn handle_response(
 
                     send_to_exact(sock, &request_buf, &remote.into())?;
 
-                    *state = State::Request(client_id.clone(), remote, ia_pd.clone());
-
                     println!(
                         " <- [{}] advertise pd {}/{} valid {} pref {}, aftr {}",
                         remote,
@@ -167,7 +166,12 @@ fn handle_response(
                         ia_prefix.preferred_lifetime,
                         aftr.map(|v| v.to_utf8()).unwrap_or("unset".into())
                     );
-                    println!(" -> [{}] request pd {} aftr", remote, ia_pd.id);
+                    println!(
+                        " -> [{}] request 0/{} pd {} aftr",
+                        remote, MAX_ATTEMPTS, ia_pd.id
+                    );
+
+                    *state = State::Request(client_id.clone(), remote, ia_pd.clone(), 1);
                 }
                 _ => println!(" <- [{}] unexpected advertise from", remote),
             }
@@ -179,7 +183,7 @@ fn handle_response(
 }
 
 fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
-    let state = state.lock().expect("state mutex is poisoned");
+    let mut state = state.lock().expect("state mutex is poisoned");
     match *state {
         State::Solicit(ref client_id) => {
             let dst: SocketAddrV6 = "[ff02::1:2]:547".parse()?;
@@ -206,7 +210,14 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
             println!(" -> solicit pd 1 aftr");
             Ok(())
         }
-        State::Request(ref client_id, dst, ref ia_pd) => {
+        State::Request(ref client_id, dst, ref ia_pd, n) => {
+            if n >= MAX_ATTEMPTS {
+                *state = State::Solicit(client_id.clone());
+
+                println!("<-> request retransmission maximum exceeded");
+                return Ok(());
+            }
+
             let mut request = Message::new(MessageType::Request);
             let opts = request.opts_mut();
 
@@ -221,7 +232,9 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
 
             send_to_exact(sock, &request_buf, &dst.into())?;
 
-            println!(" -> request pd {} aftr", ia_pd.id);
+            println!(" -> request {}/{}, pd {} aftr", n, MAX_ATTEMPTS, ia_pd.id);
+
+            *state = State::Request(client_id.clone(), dst, ia_pd.clone(), n + 1);
             Ok(())
         }
         _ => todo!(),
