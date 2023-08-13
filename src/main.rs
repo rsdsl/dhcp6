@@ -186,7 +186,7 @@ fn handle_response(
                         1,
                     );
                 }
-                _ => println!(" <- [{}] unexpected advertise from", remote),
+                _ => println!(" <- [{}] unexpected advertise", remote),
             }
         }
         MessageType::Confirm => {
