@@ -43,11 +43,15 @@ fn main() -> Result<()> {
     println!("wait for up ppp0");
     link::wait_up("ppp0".into())?;
 
-    let mut file = File::open("/tmp/pppoe.ip_config")?;
-    let ds_config: DsConfig = serde_json::from_reader(&mut file)?;
+    let mut file = File::open(rsdsl_ip_config::LOCATION)?;
+    let dsconfig: DsConfig = serde_json::from_reader(&mut file)?;
 
-    if ds_config.v6.is_none() {
+    if dsconfig.v6.is_none() {
         println!("ignore incapable ppp0");
+
+        loop {
+            thread::sleep(Duration::MAX);
+        }
     }
 
     println!("init ppp0");
