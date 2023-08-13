@@ -152,6 +152,7 @@ fn handle_response(
                     let opts = request.opts_mut();
 
                     opts.insert(DhcpOption::ClientId(client_id.clone()));
+                    opts.insert(DhcpOption::ServerId(server_id.clone()));
                     opts.insert(DhcpOption::IAPD(ia_pd.clone()));
                     opts.insert(DhcpOption::ORO(ORO {
                         opts: vec![OptionCode::AftrName],
@@ -245,6 +246,7 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
             let opts = request.opts_mut();
 
             opts.insert(DhcpOption::ClientId(client_id.clone()));
+            opts.insert(DhcpOption::ServerId(server_id.clone()));
             opts.insert(DhcpOption::IAPD(ia_pd.clone()));
             opts.insert(DhcpOption::ORO(ORO {
                 opts: vec![OptionCode::AftrName],
