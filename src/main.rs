@@ -36,7 +36,7 @@ fn main() -> Result<()> {
     println!("wait for up ppp0");
     link::wait_up("ppp0".into())?;
 
-    let mut file = File::open("/data/pppoe.ip_config")?;
+    let mut file = File::open("/tmp/pppoe.ip_config")?;
     let ds_config: DsConfig = serde_json::from_reader(&mut file)?;
 
     if ds_config.v6.is_none() {
