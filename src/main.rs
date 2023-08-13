@@ -22,7 +22,7 @@ const BUFSIZE: usize = 1500;
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum State {
     Solicit(Vec<u8>),
-    Request(Vec<u8>, SocketAddrV6),
+    Request(Vec<u8>, SocketAddrV6, IAPD),
     Active(Vec<u8>, SocketAddrV6),
     Renew(Vec<u8>, SocketAddrV6),
 }
@@ -156,7 +156,7 @@ fn handle_response(
 
                     send_to_exact(sock, &request_buf, &remote.into())?;
 
-                    *state = State::Request(client_id.clone(), remote);
+                    *state = State::Request(client_id.clone(), remote, ia_pd.clone());
 
                     println!(
                         " <- [{}] advertise pd {}/{} valid {} pref {}, aftr {}",
@@ -167,7 +167,7 @@ fn handle_response(
                         ia_prefix.preferred_lifetime,
                         aftr.map(|v| v.to_utf8()).unwrap_or("unset".into())
                     );
-                    println!(" -> [{}] request pd 1 aftr", remote);
+                    println!(" -> [{}] request pd {} aftr", remote, ia_pd.id);
                 }
                 _ => println!(" <- [{}] unexpected advertise from", remote),
             }
@@ -204,6 +204,24 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
             send_to_exact(sock, &req_buf, &dst.into())?;
 
             println!(" -> solicit pd 1 aftr");
+            Ok(())
+        }
+        State::Request(ref client_id, dst, ref ia_pd) => {
+            let mut request = Message::new(MessageType::Request);
+            let opts = request.opts_mut();
+
+            opts.insert(DhcpOption::ClientId(client_id.clone()));
+            opts.insert(DhcpOption::IAPD(ia_pd.clone()));
+            opts.insert(DhcpOption::ORO(ORO {
+                opts: vec![OptionCode::AftrName],
+            }));
+
+            let mut request_buf = Vec::new();
+            request.encode(&mut Encoder::new(&mut request_buf))?;
+
+            send_to_exact(sock, &request_buf, &dst.into())?;
+
+            println!(" -> request pd {} aftr", ia_pd.id);
             Ok(())
         }
         _ => todo!(),
