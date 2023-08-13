@@ -189,6 +189,46 @@ fn handle_response(
                 _ => println!(" <- [{}] unexpected advertise from", remote),
             }
         }
+        MessageType::Confirm => {
+            let opts = msg.opts();
+
+            let aftr = opts.get(OptionCode::AftrName).map(|v| match v {
+                DhcpOption::Unknown(unk) => {
+                    Name::from_bytes(unk.data()).expect("invalid aftr name format")
+                }
+                _ => unreachable!(),
+            });
+
+            let ia_pd = match opts.get(OptionCode::IAPD).ok_or(Error::NoIAPD)? {
+                DhcpOption::IAPD(ia_pd) => ia_pd,
+                _ => unreachable!(),
+            };
+
+            let ia_prefix = match ia_pd
+                .opts
+                .get(OptionCode::IAPrefix)
+                .ok_or(Error::NoIAPrefix)?
+            {
+                DhcpOption::IAPrefix(ia_prefix) => ia_prefix,
+                _ => unreachable!(),
+            };
+
+            match *state {
+                State::Request(ref client_id, ..) => {
+                    println!(
+                        " <- [{}] confirm pd {}/{} valid {} pref {}, aftr {}",
+                        remote,
+                        ia_prefix.prefix_ip,
+                        ia_prefix.prefix_len,
+                        ia_prefix.valid_lifetime,
+                        ia_prefix.preferred_lifetime,
+                        aftr.map(|v| v.to_utf8()).unwrap_or("unset".into())
+                    );
+                    *state = State::Active(client_id.clone(), remote);
+                }
+                _ => println!(" <- [{}] unexpected confirm", remote),
+            }
+        }
         MessageType::Decline => {
             let client_id = match *state {
                 State::Solicit(ref client_id) => client_id,
