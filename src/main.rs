@@ -3,6 +3,7 @@ use std::fs::File;
 use std::mem::MaybeUninit;
 use std::net::{Ipv6Addr, SocketAddr, SocketAddrV6};
 use std::os::fd::AsRawFd;
+use std::process;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -88,7 +89,10 @@ fn main() -> Result<()> {
     thread::spawn(move || loop {
         match tick(&sock2, state2.clone()) {
             Ok(_) => {}
-            Err(e) => println!("can't tick on ppp0: {}", e),
+            Err(e) => {
+                println!("can't tick on ppp0: {}", e);
+                process::exit(1);
+            }
         }
 
         thread::sleep(Duration::from_secs(3));
