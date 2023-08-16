@@ -236,6 +236,8 @@ fn handle_response(
         MessageType::Reply => {
             let opts = msg.opts();
 
+            let rapid_commit = opts.get(OptionCode::RapidCommit).is_some();
+
             let server_id = match opts.get(OptionCode::ServerId).ok_or(Error::NoServerId)? {
                 DhcpOption::ServerId(server_id) => server_id,
                 _ => unreachable!(),
@@ -275,6 +277,26 @@ fn handle_response(
             }
 
             match *state {
+                State::Solicit(ref client_id) => {
+                    let aftr = aftr.map(|v| v.to_utf8());
+
+                    if !rapid_commit {
+                        println!(" <- [{}] unexpected reply rapid commit, pd {}/{} valid {} pref {}, dns1 {}, dns2 {}, aftr {}", remote, ia_prefix.prefix_ip, ia_prefix.prefix_len, ia_prefix.valid_lifetime, ia_prefix.preferred_lifetime, dnss[0], dnss[1], aftr.clone().unwrap_or("unset".into()));
+                        return Ok(());
+                    }
+
+                    println!(" <- [{}] reply rapid commit, pd {}/{} valid {} pref {}, dns1 {}, dns2 {}, aftr {}", remote, ia_prefix.prefix_ip, ia_prefix.prefix_len, ia_prefix.valid_lifetime, ia_prefix.preferred_lifetime, dnss[0], dnss[1], aftr.clone().unwrap_or("unset".into()));
+                    *state = State::Active(
+                        client_id.clone(),
+                        server_id.clone(),
+                        remote,
+                        ia_pd.clone(),
+                        Instant::now(),
+                        ia_pd.t1,
+                    );
+
+                    update_pdconfig(ia_prefix, dnss, &aftr);
+                }
                 State::Request(ref client_id, ref expected_server_id, ..) => {
                     if server_id != expected_server_id {
                         println!(" <- [{}] reply from invalid server id", remote);
@@ -383,6 +405,7 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
             let opts = solicit.opts_mut();
 
             opts.insert(DhcpOption::ClientId(client_id.clone()));
+            opts.insert(DhcpOption::RapidCommit);
             opts.insert(DhcpOption::IAPD(IAPD {
                 id: 1,
                 t1: 0,
@@ -398,7 +421,7 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
 
             send_to_exact(sock, &solicit_buf, &dst.into())?;
 
-            println!(" -> [{}] solicit pd 1, dns, aftr", dst);
+            println!(" -> [{}] solicit rapid commit, pd 1, dns, aftr", dst);
             Ok(())
         }
         State::Request(ref client_id, ref server_id, xid, dst, ref ia_pd, n) => {
