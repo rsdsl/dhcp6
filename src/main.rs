@@ -254,7 +254,12 @@ fn handle_response(
             }
 
             match *state {
-                State::Request(ref client_id, ..) => {
+                State::Request(ref client_id, ref expected_server_id, ..) => {
+                    if server_id != expected_server_id {
+                        println!(" <- [{}] reply from invalid server id", remote);
+                        return Ok(());
+                    }
+
                     let aftr = aftr.map(|v| v.to_utf8());
 
                     println!(
@@ -279,7 +284,12 @@ fn handle_response(
 
                     update_pdconfig(ia_prefix, dnss, &aftr);
                 }
-                State::Renew(ref client_id, ..) => {
+                State::Renew(ref client_id, ref expected_server_id, ..) => {
+                    if server_id != expected_server_id {
+                        println!(" <- [{}] reply renew from invalid server id", remote);
+                        return Ok(());
+                    }
+
                     let aftr = aftr.map(|v| v.to_utf8());
 
                     println!(
@@ -309,6 +319,29 @@ fn handle_response(
                 State::Active(ref client_id, ..) => client_id,
                 State::Renew(ref client_id, ..) => client_id,
             };
+
+            let expected_server_id = match *state {
+                State::Solicit(..) => None,
+                State::Request(_, ref expected_server_id, ..) => Some(expected_server_id),
+                State::Active(_, ref expected_server_id, ..) => Some(expected_server_id),
+                State::Renew(_, ref expected_server_id, ..) => Some(expected_server_id),
+            };
+
+            if let Some(expected_server_id) = expected_server_id {
+                let server_id = match msg
+                    .opts()
+                    .get(OptionCode::ServerId)
+                    .ok_or(Error::NoServerId)?
+                {
+                    DhcpOption::ServerId(server_id) => server_id,
+                    _ => unreachable!(),
+                };
+
+                if server_id != expected_server_id {
+                    println!(" <- [{}] decline from invalid server id", remote);
+                    return Ok(());
+                }
+            }
 
             *state = State::Solicit(client_id.clone());
             println!(" <- [{}] decline", remote);
