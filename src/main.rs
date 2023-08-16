@@ -122,9 +122,30 @@ fn handle_response(
     remote: SocketAddrV6,
     state: Arc<Mutex<State>>,
 ) -> Result<()> {
+    let mut state = state.lock().expect("state mutex is poisoned");
     let msg = Message::decode(&mut Decoder::new(buf))?;
 
-    let mut state = state.lock().expect("state mutex is poisoned");
+    let expected_client_id = match *state {
+        State::Solicit(ref expected_client_id) => expected_client_id,
+        State::Request(ref expected_client_id, ..) => expected_client_id,
+        State::Active(ref expected_client_id, ..) => expected_client_id,
+        State::Renew(ref expected_client_id, ..) => expected_client_id,
+    };
+
+    let client_id = match msg
+        .opts()
+        .get(OptionCode::ClientId)
+        .ok_or(Error::NoClientId)?
+    {
+        DhcpOption::ClientId(client_id) => client_id,
+        _ => unreachable!(),
+    };
+
+    if client_id != expected_client_id {
+        println!(" <- [{}] invalid client id", remote);
+        return Ok(());
+    }
+
     match msg.msg_type() {
         MessageType::Advertise => {
             let opts = msg.opts();
