@@ -250,34 +250,34 @@ fn handle_response(
                 _ => unreachable!(),
             });
 
-            let ia_pd = match opts.get(OptionCode::IAPD).ok_or(Error::NoIAPD)? {
-                DhcpOption::IAPD(ia_pd) => ia_pd,
-                _ => unreachable!(),
-            };
-
-            let ia_prefix = match ia_pd
-                .opts
-                .get(OptionCode::IAPrefix)
-                .ok_or(Error::NoIAPrefix)?
-            {
-                DhcpOption::IAPrefix(ia_prefix) => ia_prefix,
-                _ => unreachable!(),
-            };
-
-            let dnss = match opts
-                .get(OptionCode::DomainNameServers)
-                .ok_or(Error::NoDns)?
-            {
-                DhcpOption::DomainNameServers(dnss) => dnss,
-                _ => unreachable!(),
-            };
-
-            if dnss.len() < 2 {
-                return Err(Error::TooFewDns(dnss.len()));
-            }
-
             match *state {
                 State::Solicit(ref client_id) => {
+                    let ia_pd = match opts.get(OptionCode::IAPD).ok_or(Error::NoIAPD)? {
+                        DhcpOption::IAPD(ia_pd) => ia_pd,
+                        _ => unreachable!(),
+                    };
+
+                    let ia_prefix = match ia_pd
+                        .opts
+                        .get(OptionCode::IAPrefix)
+                        .ok_or(Error::NoIAPrefix)?
+                    {
+                        DhcpOption::IAPrefix(ia_prefix) => ia_prefix,
+                        _ => unreachable!(),
+                    };
+
+                    let dnss = match opts
+                        .get(OptionCode::DomainNameServers)
+                        .ok_or(Error::NoDns)?
+                    {
+                        DhcpOption::DomainNameServers(dnss) => dnss,
+                        _ => unreachable!(),
+                    };
+
+                    if dnss.len() < 2 {
+                        return Err(Error::TooFewDns(dnss.len()));
+                    }
+
                     let aftr = aftr.map(|v| v.to_utf8());
 
                     if !rapid_commit {
@@ -301,6 +301,32 @@ fn handle_response(
                     if server_id != expected_server_id {
                         println!(" <- [{}] reply from invalid server id", remote);
                         return Ok(());
+                    }
+
+                    let ia_pd = match opts.get(OptionCode::IAPD).ok_or(Error::NoIAPD)? {
+                        DhcpOption::IAPD(ia_pd) => ia_pd,
+                        _ => unreachable!(),
+                    };
+
+                    let ia_prefix = match ia_pd
+                        .opts
+                        .get(OptionCode::IAPrefix)
+                        .ok_or(Error::NoIAPrefix)?
+                    {
+                        DhcpOption::IAPrefix(ia_prefix) => ia_prefix,
+                        _ => unreachable!(),
+                    };
+
+                    let dnss = match opts
+                        .get(OptionCode::DomainNameServers)
+                        .ok_or(Error::NoDns)?
+                    {
+                        DhcpOption::DomainNameServers(dnss) => dnss,
+                        _ => unreachable!(),
+                    };
+
+                    if dnss.len() < 2 {
+                        return Err(Error::TooFewDns(dnss.len()));
                     }
 
                     let aftr = aftr.map(|v| v.to_utf8());
@@ -327,21 +353,15 @@ fn handle_response(
 
                     update_pdconfig(ia_prefix, dnss, &aftr);
                 }
-                State::Renew(ref client_id, ref expected_server_id, ..) => {
+                State::Renew(ref client_id, ref expected_server_id, _, ref ia_pd, _) => {
                     if server_id != expected_server_id {
                         println!(" <- [{}] reply renew from invalid server id", remote);
                         return Ok(());
                     }
 
-                    let aftr = aftr.map(|v| v.to_utf8());
-
                     println!(
-                        " <- [{}] reply renew pd {}, dns1 {}, dns2 {}, aftr {}",
-                        remote,
-                        ia_pd.id,
-                        dnss[0],
-                        dnss[1],
-                        aftr.clone().unwrap_or("unset".into())
+                        " <- [{}] reply renew pd {}, dns1, dns2, aftr",
+                        remote, ia_pd.id,
                     );
                     *state = State::Active(
                         client_id.clone(),
