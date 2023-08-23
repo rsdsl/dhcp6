@@ -292,7 +292,7 @@ fn handle_response(
                         remote,
                         ia_pd.clone(),
                         Instant::now(),
-                        ia_pd.t1,
+                        20,
                     );
 
                     update_pdconfig(ia_prefix, dnss, &aftr);
@@ -322,12 +322,14 @@ fn handle_response(
                         remote,
                         ia_pd.clone(),
                         Instant::now(),
-                        ia_pd.t1,
+                        20,
                     );
 
                     update_pdconfig(ia_prefix, dnss, &aftr);
                 }
                 State::Renew(ref client_id, ref expected_server_id, ..) => {
+                    println!(" <- [{}] reply renew dbg {:?}", remote, msg);
+
                     if server_id != expected_server_id {
                         println!(" <- [{}] reply renew from invalid server id", remote);
                         return Ok(());
@@ -349,7 +351,7 @@ fn handle_response(
                         remote,
                         ia_pd.clone(),
                         Instant::now(),
-                        ia_pd.t1,
+                        20,
                     );
                 }
                 _ => println!(" <- [{}] unexpected reply", remote),
