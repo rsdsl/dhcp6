@@ -504,6 +504,7 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
             opts.insert(DhcpOption::ORO(ORO {
                 opts: vec![OptionCode::AftrName, OptionCode::DomainNameServers],
             }));
+            opts.insert(DhcpOption::ElapsedTime(3000 * n as u16));
 
             let mut renew_buf = Vec::new();
             renew.encode(&mut Encoder::new(&mut renew_buf))?;
