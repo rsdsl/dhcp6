@@ -234,8 +234,6 @@ fn handle_response(
             }
         }
         MessageType::Reply => {
-            println!(" <- [{}] reply dbg {:?}", remote, msg);
-
             let opts = msg.opts();
 
             let rapid_commit = opts.get(OptionCode::RapidCommit).is_some();
@@ -330,6 +328,8 @@ fn handle_response(
                     update_pdconfig(ia_prefix, dnss, &aftr);
                 }
                 State::Renew(ref client_id, ref expected_server_id, ..) => {
+                    println!(" <- [{}] reply renew dbg {:?}", remote, msg);
+
                     if server_id != expected_server_id {
                         println!(" <- [{}] reply renew from invalid server id", remote);
                         return Ok(());
@@ -511,7 +511,6 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
 
             send_to_exact(sock, &renew_buf, &dst.into())?;
 
-            println!(" -> [{}] renew dbg {:?}", dst, renew);
             println!(
                 " -> [{}] renew {}/{} pd {}, dns, aftr",
                 dst, n, MAX_ATTEMPTS, ia_pd.id
