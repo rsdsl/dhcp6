@@ -485,7 +485,22 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
         State::Active(ref client_id, ref server_id, dst, ref ia_pd, recv, t1) => {
             // Subtraction accounts for delay causey by loop interval.
             if Instant::now().duration_since(recv).as_secs() >= (t1 - 3).into() {
-                *state = State::Renew(client_id.clone(), server_id.clone(), dst, ia_pd.clone(), 0);
+                let mut expired_pd = ia_pd.clone();
+                let expired_prefix = match expired_pd
+                    .opts
+                    .get_mut(OptionCode::IAPrefix)
+                    .ok_or(Error::NoIAPrefix)?
+                {
+                    DhcpOption::IAPrefix(expired_prefix) => expired_prefix,
+                    _ => unreachable!(),
+                };
+
+                expired_pd.t1 = 0;
+                expired_pd.t2 = 0;
+                expired_prefix.preferred_lifetime = 0;
+                expired_prefix.valid_lifetime = 0;
+
+                *state = State::Renew(client_id.clone(), server_id.clone(), dst, expired_pd, 0);
             }
 
             Ok(())
