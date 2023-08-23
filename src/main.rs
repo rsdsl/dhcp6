@@ -488,6 +488,8 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
             Ok(())
         }
         State::Renew(ref client_id, ref server_id, dst, ref ia_pd, n) => {
+            let dst: SocketAddrV6 = "[ff02::1:2]:547".parse()?;
+
             if n >= MAX_ATTEMPTS {
                 *state = State::Solicit(client_id.clone());
 
@@ -495,7 +497,7 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
                 return Ok(());
             }
 
-            let mut renew = Message::new(MessageType::Renew);
+            let mut renew = Message::new(MessageType::Rebind);
             let opts = renew.opts_mut();
 
             opts.insert(DhcpOption::ClientId(client_id.clone()));
@@ -504,7 +506,6 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
             opts.insert(DhcpOption::ORO(ORO {
                 opts: vec![OptionCode::AftrName, OptionCode::DomainNameServers],
             }));
-            opts.insert(DhcpOption::ElapsedTime(3000 * n as u16));
 
             let mut renew_buf = Vec::new();
             renew.encode(&mut Encoder::new(&mut renew_buf))?;
