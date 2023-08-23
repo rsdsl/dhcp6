@@ -25,9 +25,9 @@ const MAX_ATTEMPTS: usize = 4;
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum State {
     Solicit(Vec<u8>),
-    Request(Vec<u8>, Vec<u8>, [u8; 3], SocketAddrV6, IAPD, usize),
-    Active(Vec<u8>, Vec<u8>, SocketAddrV6, IAPD, Instant, u32),
-    Renew(Vec<u8>, Vec<u8>, SocketAddrV6, IAPD, usize),
+    Request(Vec<u8>, Vec<u8>, [u8; 3], IAPD, usize),
+    Active(Vec<u8>, Vec<u8>, IAPD, Instant, u32),
+    Renew(Vec<u8>, Vec<u8>, IAPD, usize),
 }
 
 impl Default for State {
@@ -225,7 +225,6 @@ fn handle_response(
                         client_id.clone(),
                         server_id.clone(),
                         msg.xid(),
-                        remote,
                         ia_pd.clone(),
                         1,
                     );
@@ -289,7 +288,6 @@ fn handle_response(
                     *state = State::Active(
                         client_id.clone(),
                         server_id.clone(),
-                        remote,
                         ia_pd.clone(),
                         Instant::now(),
                         ia_pd.t1,
@@ -319,7 +317,6 @@ fn handle_response(
                     *state = State::Active(
                         client_id.clone(),
                         server_id.clone(),
-                        remote,
                         ia_pd.clone(),
                         Instant::now(),
                         ia_pd.t1,
@@ -346,7 +343,6 @@ fn handle_response(
                     *state = State::Active(
                         client_id.clone(),
                         server_id.clone(),
-                        remote,
                         ia_pd.clone(),
                         Instant::now(),
                         ia_pd.t1,
@@ -396,11 +392,11 @@ fn handle_response(
 }
 
 fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
+    let dst: SocketAddrV6 = "[ff02::1:2]:547".parse()?;
+
     let mut state = state.lock().expect("state mutex is poisoned");
     match *state {
         State::Solicit(ref client_id) => {
-            let dst: SocketAddrV6 = "[ff02::1:2]:547".parse()?;
-
             let mut solicit = Message::new(MessageType::Solicit);
             let opts = solicit.opts_mut();
 
@@ -424,7 +420,7 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
             println!(" -> [{}] solicit rapid commit, pd 1, dns, aftr", dst);
             Ok(())
         }
-        State::Request(ref client_id, ref server_id, xid, dst, ref ia_pd, n) => {
+        State::Request(ref client_id, ref server_id, xid, ref ia_pd, n) => {
             if n >= MAX_ATTEMPTS {
                 *state = State::Solicit(client_id.clone());
 
@@ -456,13 +452,12 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
                 client_id.clone(),
                 server_id.clone(),
                 xid,
-                dst,
                 ia_pd.clone(),
                 n + 1,
             );
             Ok(())
         }
-        State::Active(ref client_id, ref server_id, dst, ref ia_pd, recv, t1) => {
+        State::Active(ref client_id, ref server_id, ref ia_pd, recv, t1) => {
             // Subtraction accounts for delay causey by loop interval.
             if Instant::now().duration_since(recv).as_secs() >= (t1 - 3).into() {
                 let mut expired_pd = ia_pd.clone();
@@ -480,12 +475,12 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
                 expired_prefix.preferred_lifetime = 0;
                 expired_prefix.valid_lifetime = 0;
 
-                *state = State::Renew(client_id.clone(), server_id.clone(), dst, expired_pd, 0);
+                *state = State::Renew(client_id.clone(), server_id.clone(), expired_pd, 0);
             }
 
             Ok(())
         }
-        State::Renew(ref client_id, ref server_id, dst, ref ia_pd, n) => {
+        State::Renew(ref client_id, ref server_id, ref ia_pd, n) => {
             if n >= MAX_ATTEMPTS {
                 *state = State::Solicit(client_id.clone());
 
@@ -513,13 +508,7 @@ fn tick(sock: &Socket, state: Arc<Mutex<State>>) -> Result<()> {
                 dst, n, MAX_ATTEMPTS, ia_pd.id
             );
 
-            *state = State::Renew(
-                client_id.clone(),
-                server_id.clone(),
-                dst,
-                ia_pd.clone(),
-                n + 1,
-            );
+            *state = State::Renew(client_id.clone(), server_id.clone(), ia_pd.clone(), n + 1);
             Ok(())
         }
     }
