@@ -86,9 +86,21 @@ async fn main() -> Result<()> {
             result = sock.recv_from(&mut buf) => {
             }
             _ = interval.tick() => {
+                logged_tick();
             }
         }
     }
+}
+
+fn logged_tick() {
+    match tick() {
+        Ok(_) => {}
+        Err(e) => println!("[warn] tick: {}", e),
+    }
+}
+
+fn tick() -> Result<()> {
+    Ok(())
 }
 
 async fn send_to_exact<A: ToSocketAddrs>(sock: &UdpSocket, buf: &[u8], target: A) -> Result<()> {
