@@ -141,7 +141,7 @@ async fn tick(sock: &UdpSocket, dhcp6: &Dhcp6) -> Result<()> {
             println!("[info] solicit");
             Ok(())
         }
-        Some(lease) => Ok(()),
+        Some(lease) => todo!(),
     }
 }
 
@@ -153,5 +153,5 @@ fn logged_handle(buf: &[u8], raddr: SocketAddr) {
 }
 
 fn handle(buf: &[u8], raddr: SocketAddr) -> Result<()> {
-    Ok(())
+    todo!()
 }
