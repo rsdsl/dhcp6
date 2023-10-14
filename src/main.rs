@@ -234,6 +234,16 @@ fn handle(dhcp6: &mut Dhcp6, buf: &[u8], raddr: SocketAddr) -> Result<()> {
                 _ => unreachable!(),
             };
 
+            // Regular renewal, make sure the server ID matches.
+            if dhcp6
+                .lease
+                .as_ref()
+                .is_some_and(|lease| !needs_rebind(lease) && *server_id != lease.server_id)
+            {
+                println!("[warn] <- [{}] server id mismatch", raddr);
+                return Ok(());
+            }
+
             let aftr = opts.get(OptionCode::AftrName).map(|v| match v {
                 DhcpOption::Unknown(unk) => {
                     Name::from_bytes(unk.data()).expect("invalid aftr name format")
