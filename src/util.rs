@@ -8,6 +8,7 @@ use tokio::net::{ToSocketAddrs, UdpSocket};
 
 use dhcproto::v6::IAPrefix;
 use rsdsl_pd_config::PdConfig;
+use sysinfo::{ProcessExt, Signal, System, SystemExt};
 
 pub fn expired(lease: &PdConfig) -> bool {
     let expiry = lease.timestamp + Duration::from_secs(lease.preflft.into());
@@ -24,5 +25,15 @@ pub async fn send_to_exact<A: ToSocketAddrs>(
         Err(Error::PartialSend)
     } else {
         Ok(())
+    }
+}
+
+pub fn inform() {
+    for netlinkd in System::default().processes_by_exact_name("/bin/rsdsl_netlinkd") {
+        netlinkd.kill_with(Signal::User1);
+    }
+
+    for dslite in System::default().processes_by_exact_name("/bin/rsdsl_dslite") {
+        dslite.kill_with(Signal::User1);
     }
 }

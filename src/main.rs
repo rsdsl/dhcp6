@@ -14,7 +14,6 @@ use dhcproto::{Decodable, Decoder, Encodable, Encoder, Name};
 use rsdsl_ip_config::DsConfig;
 use rsdsl_pd_config::PdConfig;
 use socket2::{Domain, Socket, Type};
-use sysinfo::{ProcessExt, Signal, System, SystemExt};
 use trust_dns_proto::serialize::binary::BinDecodable;
 
 const DUID_LOCATION: &str = "/data/dhcp6.duid";
@@ -75,11 +74,9 @@ async fn main() -> Result<()> {
 
     sock.bind_device(Some("ppp0".as_bytes()))?;
 
-    // If a valid lease is present on disk, inform netlinkd immediately.
+    // If a valid lease is present on disk, inform netlinkd and dslite immediately.
     if dhcp6.lease.is_some() {
-        for netlinkd in System::default().processes_by_exact_name("/bin/rsdsl_netlinkd") {
-            netlinkd.kill_with(Signal::User1);
-        }
+        inform();
     }
 
     let mut interval = time::interval(Duration::from_secs(TICK_INTERVAL));
@@ -209,7 +206,7 @@ fn handle(dhcp6: &mut Dhcp6, buf: &[u8], raddr: SocketAddr) -> Result<()> {
                 aftr: aftr.clone(),
             };
 
-            let inform = dhcp6.lease.is_none();
+            let should_inform = dhcp6.lease.is_none();
 
             // Are we renewing an existing lease?
             match &mut dhcp6.lease {
@@ -235,27 +232,22 @@ fn handle(dhcp6: &mut Dhcp6, buf: &[u8], raddr: SocketAddr) -> Result<()> {
             let mut file = File::create(rsdsl_pd_config::LOCATION)?;
             serde_json::to_writer_pretty(&mut file, &dhcp6.lease)?;
 
-            // If this is a new lease, inform netlinkd.
-            if inform {
-                for netlinkd in System::default().processes_by_exact_name("/bin/rsdsl_netlinkd") {
-                    netlinkd.kill_with(Signal::User1);
-                }
+            // If this is a new lease, inform netlinkd and dslite.
+            if should_inform {
+                inform();
             }
         }
         MessageType::Decline => {
             // Declined solicitations don't have an impact, logging them is enough.
             // If a renewal or rebind is declined, start over by soliciting.
-            // Inform netlinkd of the validity loss.
+            // Inform netlinkd and dslite of the validity loss.
 
             if dhcp6.lease.is_some() {
                 dhcp6.lease = None;
 
                 // Inexistent lease causes deconfiguration.
                 fs::remove_file(rsdsl_pd_config::LOCATION)?;
-
-                for netlinkd in System::default().processes_by_exact_name("/bin/rsdsl_netlinkd") {
-                    netlinkd.kill_with(Signal::User1);
-                }
+                inform();
             }
 
             println!("[info] manual invalidation");
