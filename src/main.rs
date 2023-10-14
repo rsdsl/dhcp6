@@ -300,12 +300,14 @@ fn handle(dhcp6: &mut Dhcp6, buf: &[u8], raddr: SocketAddr) -> Result<()> {
             match &mut dhcp6.lease {
                 Some(lease) => {
                     *lease = new_lease;
-                    println!("[info] renewal successful");
+                    println!("[info] <- renewal/rebind successful");
                 }
                 None => {
                     dhcp6.lease = Some(new_lease);
                     println!(
-                        "[info] obtain {}/{}, valid {}, pref {}, dns1 {}, dns2 {}, aftr {}",
+                        "[info] <- [{}] obtain from {}: {}/{}, valid {}, pref {}, dns1 {}, dns2 {}, aftr {}",
+                        raddr,
+                        hexdump(server_id)?,
                         ia_prefix.prefix_ip,
                         ia_prefix.prefix_len,
                         ia_prefix.valid_lifetime,
@@ -338,7 +340,7 @@ fn handle(dhcp6: &mut Dhcp6, buf: &[u8], raddr: SocketAddr) -> Result<()> {
                 inform();
             }
 
-            println!("[info] manual invalidation");
+            println!("[info] <- [{}] decline", raddr);
         }
         _ => println!(
             "[warn] <- [{}] unhandled message type {:?}",

@@ -6,6 +6,8 @@ use thiserror::Error;
 pub enum Error {
     #[error("no client duid")]
     NoClientId,
+    #[error("no hexdump data")]
+    NoData,
     #[error("no domain name servers")]
     NoDns,
     #[error("no ia_pd")]

@@ -47,3 +47,10 @@ pub fn inform() {
         dslite.kill_with(Signal::User1);
     }
 }
+
+pub fn hexdump(data: &[u8]) -> Result<String> {
+    data.iter()
+        .map(|byte| format!("{:02x}", byte))
+        .reduce(|acc, ch| acc + &ch)
+        .ok_or(Error::NoData)
+}
