@@ -91,7 +91,7 @@ async fn main() -> Result<()> {
                 let (n, raddr) = result?;
                 let buf = &buf[..n];
 
-                logged_handle(buf, raddr);
+                logged_handle(&dhcp6, buf, raddr);
                 logged_tick(&sock, &dhcp6).await;
             }
             _ = interval.tick() => {
@@ -131,20 +131,44 @@ async fn tick(sock: &UdpSocket, dhcp6: &Dhcp6) -> Result<()> {
 
             send_to_exact(sock, &buf, ALL_DHCPV6_SERVERS).await?;
 
-            println!("[info] solicit");
+            println!("[info] -> solicit");
             Ok(())
         }
         Some(lease) => todo!(),
     }
 }
 
-fn logged_handle(buf: &[u8], raddr: SocketAddr) {
-    match handle(buf, raddr) {
+fn logged_handle(dhcp6: &Dhcp6, buf: &[u8], raddr: SocketAddr) {
+    match handle(dhcp6, buf, raddr) {
         Ok(_) => {}
         Err(e) => println!("[warn] handle from {}: {}", raddr, e),
     }
 }
 
-fn handle(buf: &[u8], raddr: SocketAddr) -> Result<()> {
-    todo!()
+fn handle(dhcp6: &Dhcp6, buf: &[u8], raddr: SocketAddr) -> Result<()> {
+    let msg = Message::decode(&mut Decoder::new(buf))?;
+
+    let client_id = match msg
+        .opts()
+        .get(OptionCode::ClientId)
+        .ok_or(Error::NoClientId)?
+    {
+        DhcpOption::ClientId(client_id) => client_id,
+        _ => unreachable!(),
+    };
+
+    if client_id != dhcp6.duid.as_ref() {
+        println!("[warn] <- [{}] client id mismatch", raddr);
+        return Ok(());
+    }
+
+    match msg.msg_type() {
+        _ => println!(
+            "[warn] <- [{}] unhandled message type {:?}",
+            raddr,
+            msg.msg_type()
+        ),
+    }
+
+    Ok(())
 }
