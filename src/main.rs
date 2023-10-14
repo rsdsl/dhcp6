@@ -198,6 +198,8 @@ fn handle(dhcp6: &mut Dhcp6, buf: &[u8], raddr: SocketAddr) -> Result<()> {
 
             let new_lease = PdConfig {
                 timestamp: SystemTime::now(),
+                t1: ia_pd.t1,
+                t2: ia_pd.t2,
                 prefix: ia_prefix.prefix_ip,
                 len: ia_prefix.prefix_len,
                 preflft: ia_prefix.preferred_lifetime,
