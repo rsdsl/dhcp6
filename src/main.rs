@@ -59,7 +59,7 @@ fn load_lease_optional() -> Option<PdConfig> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let dhcp6 = Dhcp6::load_from_disk()?;
+    let mut dhcp6 = Dhcp6::load_from_disk()?;
 
     let sock = Socket::new(Domain::IPV6, Type::DGRAM, None)?;
 
@@ -91,7 +91,7 @@ async fn main() -> Result<()> {
                 let (n, raddr) = result?;
                 let buf = &buf[..n];
 
-                logged_handle(&dhcp6, buf, raddr);
+                logged_handle(&mut dhcp6, buf, raddr);
                 logged_tick(&dhcp6, &sock).await;
             }
             _ = interval.tick() => {
@@ -138,21 +138,18 @@ async fn tick(dhcp6: &Dhcp6, sock: &UdpSocket) -> Result<()> {
     }
 }
 
-fn logged_handle(dhcp6: &Dhcp6, buf: &[u8], raddr: SocketAddr) {
+fn logged_handle(dhcp6: &mut Dhcp6, buf: &[u8], raddr: SocketAddr) {
     match handle(dhcp6, buf, raddr) {
         Ok(_) => {}
         Err(e) => println!("[warn] handle from {}: {}", raddr, e),
     }
 }
 
-fn handle(dhcp6: &Dhcp6, buf: &[u8], raddr: SocketAddr) -> Result<()> {
+fn handle(dhcp6: &mut Dhcp6, buf: &[u8], raddr: SocketAddr) -> Result<()> {
     let msg = Message::decode(&mut Decoder::new(buf))?;
+    let opts = msg.opts();
 
-    let client_id = match msg
-        .opts()
-        .get(OptionCode::ClientId)
-        .ok_or(Error::NoClientId)?
-    {
+    let client_id = match opts.get(OptionCode::ClientId).ok_or(Error::NoClientId)? {
         DhcpOption::ClientId(client_id) => client_id,
         _ => unreachable!(),
     };
@@ -163,6 +160,86 @@ fn handle(dhcp6: &Dhcp6, buf: &[u8], raddr: SocketAddr) -> Result<()> {
     }
 
     match msg.msg_type() {
+        MessageType::Reply => {
+            let aftr = opts.get(OptionCode::AftrName).map(|v| match v {
+                DhcpOption::Unknown(unk) => {
+                    Name::from_bytes(unk.data()).expect("invalid aftr name format")
+                }
+                _ => unreachable!(),
+            });
+
+            let ia_pd = match opts.get(OptionCode::IAPD).ok_or(Error::NoIAPD)? {
+                DhcpOption::IAPD(ia_pd) => ia_pd,
+                _ => unreachable!(),
+            };
+
+            let ia_prefix = match ia_pd
+                .opts
+                .get(OptionCode::IAPrefix)
+                .ok_or(Error::NoIAPrefix)?
+            {
+                DhcpOption::IAPrefix(ia_prefix) => ia_prefix,
+                _ => unreachable!(),
+            };
+
+            let dnss = match opts
+                .get(OptionCode::DomainNameServers)
+                .ok_or(Error::NoDns)?
+            {
+                DhcpOption::DomainNameServers(dnss) => dnss,
+                _ => unreachable!(),
+            };
+
+            if dnss.len() < 2 {
+                return Err(Error::TooFewDns(dnss.len()));
+            }
+
+            let aftr = aftr.map(|v| v.to_utf8());
+
+            let new_lease = PdConfig {
+                timestamp: SystemTime::now(),
+                prefix: ia_prefix.prefix_ip,
+                len: ia_prefix.prefix_len,
+                preflft: ia_prefix.preferred_lifetime,
+                validlft: ia_prefix.valid_lifetime,
+                dns1: dnss[0],
+                dns2: dnss[1],
+                aftr: aftr.clone(),
+            };
+
+            let inform = dhcp6.lease.is_none();
+
+            // Are we renewing an existing lease?
+            match &mut dhcp6.lease {
+                Some(lease) => {
+                    *lease = new_lease;
+                    println!("[info] renewal successful");
+                }
+                None => {
+                    dhcp6.lease = Some(new_lease);
+                    println!(
+                        "[info] obtain {}/{}, valid {}, pref {}, dns1 {}, dns2 {}, aftr {}",
+                        ia_prefix.prefix_ip,
+                        ia_prefix.prefix_len,
+                        ia_prefix.valid_lifetime,
+                        ia_prefix.preferred_lifetime,
+                        dnss[0],
+                        dnss[1],
+                        aftr.unwrap_or("unset".into())
+                    );
+                }
+            }
+
+            let mut file = File::create(rsdsl_pd_config::LOCATION)?;
+            serde_json::to_writer_pretty(&mut file, &dhcp6.lease)?;
+
+            // If this is a new lease, inform netlinkd.
+            if inform {
+                for netlinkd in System::default().processes_by_exact_name("/bin/rsdsl_netlinkd") {
+                    netlinkd.kill_with(Signal::User1);
+                }
+            }
+        }
         _ => println!(
             "[warn] <- [{}] unhandled message type {:?}",
             raddr,
