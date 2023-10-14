@@ -14,7 +14,11 @@ pub fn expired(lease: &PdConfig) -> bool {
     SystemTime::now() >= expiry
 }
 
-async fn send_to_exact<A: ToSocketAddrs>(sock: &UdpSocket, buf: &[u8], target: A) -> Result<()> {
+pub async fn send_to_exact<A: ToSocketAddrs>(
+    sock: &UdpSocket,
+    buf: &[u8],
+    target: A,
+) -> Result<()> {
     let n = sock.send_to(buf, target).await?;
     if n != buf.len() {
         Err(Error::PartialSend)
@@ -23,7 +27,11 @@ async fn send_to_exact<A: ToSocketAddrs>(sock: &UdpSocket, buf: &[u8], target: A
     }
 }
 
-fn write_pdconfig(ia_prefix: &IAPrefix, dnss: &[Ipv6Addr], aftr: &Option<String>) -> Result<()> {
+pub fn write_pdconfig(
+    ia_prefix: &IAPrefix,
+    dnss: &[Ipv6Addr],
+    aftr: &Option<String>,
+) -> Result<()> {
     let pdconfig = PdConfig {
         timestamp: SystemTime::now(),
         prefix: ia_prefix.prefix_ip,
