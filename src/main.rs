@@ -6,12 +6,11 @@ use std::net::{Ipv6Addr, SocketAddr, SocketAddrV6};
 use std::str::FromStr;
 use std::time::SystemTime;
 
-use tokio::net::{ToSocketAddrs, UdpSocket};
-use tokio::time::{self, Duration, Instant};
+use tokio::net::UdpSocket;
+use tokio::time::{self, Duration};
 
 use dhcproto::v6::{duid::Duid, DhcpOption, IAPrefix, Message, MessageType, OptionCode, IAPD, ORO};
 use dhcproto::{Decodable, Decoder, Encodable, Encoder, Name};
-use rsdsl_ip_config::DsConfig;
 use rsdsl_pd_config::PdConfig;
 use socket2::{Domain, Socket, Type};
 use trust_dns_proto::serialize::binary::BinDecodable;

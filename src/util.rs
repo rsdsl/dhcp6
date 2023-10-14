@@ -1,12 +1,9 @@
 use crate::{Error, Result};
 
-use std::fs::File;
-use std::net::Ipv6Addr;
 use std::time::{Duration, SystemTime};
 
 use tokio::net::{ToSocketAddrs, UdpSocket};
 
-use dhcproto::v6::IAPrefix;
 use rsdsl_pd_config::PdConfig;
 use sysinfo::{ProcessExt, Signal, System, SystemExt};
 
