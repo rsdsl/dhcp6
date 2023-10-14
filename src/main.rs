@@ -89,24 +89,24 @@ async fn main() -> Result<()> {
                 let buf = &buf[..n];
 
                 logged_handle(&mut dhcp6, buf, raddr);
-                logged_tick(&dhcp6, &sock).await;
+                logged_tick(&mut dhcp6, &sock).await;
             }
             _ = interval.tick() => {
-                logged_tick(&dhcp6, &sock).await;
+                logged_tick(&mut dhcp6, &sock).await;
             }
         }
     }
 }
 
-async fn logged_tick(dhcp6: &Dhcp6, sock: &UdpSocket) {
+async fn logged_tick(dhcp6: &mut Dhcp6, sock: &UdpSocket) {
     match tick(dhcp6, sock).await {
         Ok(_) => {}
         Err(e) => println!("[warn] tick: {}", e),
     }
 }
 
-async fn tick(dhcp6: &Dhcp6, sock: &UdpSocket) -> Result<()> {
-    match &dhcp6.lease {
+async fn tick(dhcp6: &mut Dhcp6, sock: &UdpSocket) -> Result<()> {
+    match &mut dhcp6.lease {
         None => {
             let mut solicit = Message::new(MessageType::Solicit);
             let opts = solicit.opts_mut();
@@ -131,7 +131,78 @@ async fn tick(dhcp6: &Dhcp6, sock: &UdpSocket) -> Result<()> {
             println!("[info] -> solicit");
             Ok(())
         }
-        Some(lease) => todo!(),
+        Some(lease) => {
+            if expired(lease) {
+                dhcp6.lease = None;
+
+                // Inexistent lease causes deconfiguration.
+                fs::remove_file(rsdsl_pd_config::LOCATION)?;
+                inform();
+
+                println!("[info] lease expired");
+            } else if needs_rebind(lease) {
+                let mut rebind = Message::new(MessageType::Rebind);
+                let opts = rebind.opts_mut();
+
+                opts.insert(DhcpOption::ClientId(dhcp6.duid.as_ref().to_vec()));
+                opts.insert(DhcpOption::IAPD(IAPD {
+                    id: 1,
+                    t1: 0,
+                    t2: 0,
+                    opts: vec![DhcpOption::IAPrefix(IAPrefix {
+                        prefix_ip: lease.prefix,
+                        prefix_len: lease.len,
+                        preferred_lifetime: lease.preflft,
+                        valid_lifetime: lease.validlft,
+                        opts: Default::default(),
+                    })]
+                    .into_iter()
+                    .collect(),
+                }));
+                opts.insert(DhcpOption::ORO(ORO {
+                    opts: vec![OptionCode::AftrName, OptionCode::DomainNameServers],
+                }));
+
+                let mut buf = Vec::new();
+                rebind.encode(&mut Encoder::new(&mut buf))?;
+
+                send_to_exact(sock, &buf, ALL_DHCPV6_SERVERS).await?;
+
+                println!("[info] -> rebind");
+            } else if needs_renewal(lease) {
+                let mut renew = Message::new(MessageType::Renew);
+                let opts = renew.opts_mut();
+
+                opts.insert(DhcpOption::ClientId(dhcp6.duid.as_ref().to_vec()));
+                opts.insert(DhcpOption::ServerId(lease.server_id.clone()));
+                opts.insert(DhcpOption::IAPD(IAPD {
+                    id: 1,
+                    t1: 0,
+                    t2: 0,
+                    opts: vec![DhcpOption::IAPrefix(IAPrefix {
+                        prefix_ip: lease.prefix,
+                        prefix_len: lease.len,
+                        preferred_lifetime: lease.preflft,
+                        valid_lifetime: lease.validlft,
+                        opts: Default::default(),
+                    })]
+                    .into_iter()
+                    .collect(),
+                }));
+                opts.insert(DhcpOption::ORO(ORO {
+                    opts: vec![OptionCode::AftrName, OptionCode::DomainNameServers],
+                }));
+
+                let mut buf = Vec::new();
+                renew.encode(&mut Encoder::new(&mut buf))?;
+
+                send_to_exact(sock, &buf, lease.server).await?;
+
+                println!("[info] -> renew");
+            }
+
+            Ok(())
+        }
     }
 }
 
@@ -158,6 +229,11 @@ fn handle(dhcp6: &mut Dhcp6, buf: &[u8], raddr: SocketAddr) -> Result<()> {
 
     match msg.msg_type() {
         MessageType::Reply => {
+            let server_id = match opts.get(OptionCode::ServerId).ok_or(Error::NoServerId)? {
+                DhcpOption::ServerId(server_id) => server_id,
+                _ => unreachable!(),
+            };
+
             let aftr = opts.get(OptionCode::AftrName).map(|v| match v {
                 DhcpOption::Unknown(unk) => {
                     Name::from_bytes(unk.data()).expect("invalid aftr name format")
@@ -195,6 +271,8 @@ fn handle(dhcp6: &mut Dhcp6, buf: &[u8], raddr: SocketAddr) -> Result<()> {
 
             let new_lease = PdConfig {
                 timestamp: SystemTime::now(),
+                server: raddr,
+                server_id: server_id.to_vec(),
                 t1: ia_pd.t1,
                 t2: ia_pd.t2,
                 prefix: ia_prefix.prefix_ip,

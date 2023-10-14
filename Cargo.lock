@@ -477,7 +477,7 @@ dependencies = [
 [[package]]
 name = "rsdsl_pd_config"
 version = "0.1.0"
-source = "git+https://github.com/rsdsl/pd_config.git#cc5714cbcfca0af22913c165b6cd110466dd1cf8"
+source = "git+https://github.com/rsdsl/pd_config.git#6cf4dbd588730396d5d03f5d01ad88ff37bf79b0"
 dependencies = [
  "serde",
 ]

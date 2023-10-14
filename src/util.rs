@@ -15,6 +15,16 @@ pub fn expired(lease: &PdConfig) -> bool {
     SystemTime::now() >= expiry
 }
 
+pub fn needs_rebind(lease: &PdConfig) -> bool {
+    let expiry = lease.timestamp + Duration::from_secs(lease.t2.into());
+    SystemTime::now() >= expiry
+}
+
+pub fn needs_renewal(lease: &PdConfig) -> bool {
+    let expiry = lease.timestamp + Duration::from_secs(lease.t1.into());
+    SystemTime::now() >= expiry
+}
+
 pub async fn send_to_exact<A: ToSocketAddrs>(
     sock: &UdpSocket,
     buf: &[u8],
