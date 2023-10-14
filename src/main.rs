@@ -1,4 +1,5 @@
-#![allow(unused)]
+use rsdsl_dhcp6::util::setsockopt;
+use rsdsl_dhcp6::{Error, Result};
 
 use std::ffi::CString;
 use std::fs::{self, File};
@@ -14,8 +15,6 @@ use std::time::{Duration, Instant, SystemTime};
 
 use dhcproto::v6::{duid::Duid, DhcpOption, IAPrefix, Message, MessageType, OptionCode, IAPD, ORO};
 use dhcproto::{Decodable, Decoder, Encodable, Encoder, Name};
-use rsdsl_dhcp6::util::setsockopt;
-use rsdsl_dhcp6::{Error, Result};
 use rsdsl_ip_config::DsConfig;
 use rsdsl_pd_config::PdConfig;
 use socket2::{Domain, SockAddr, Socket, Type};
