@@ -88,23 +88,23 @@ async fn main() -> Result<()> {
                 let buf = &buf[..n];
 
                 logged_handle(buf, raddr);
-                logged_tick();
+                logged_tick(&dhcp6);
             }
             _ = interval.tick() => {
-                logged_tick();
+                logged_tick(&dhcp6);
             }
         }
     }
 }
 
-fn logged_tick() {
-    match tick() {
+fn logged_tick(dhcp6: &Dhcp6) {
+    match tick(dhcp6) {
         Ok(_) => {}
         Err(e) => println!("[warn] tick: {}", e),
     }
 }
 
-fn tick() -> Result<()> {
+fn tick(dhcp6: &Dhcp6) -> Result<()> {
     Ok(())
 }
 
