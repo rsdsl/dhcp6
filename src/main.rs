@@ -88,13 +88,11 @@ fn main() -> Result<()> {
     loop {
         let mut buf = [MaybeUninit::new(0); BUFSIZE];
         let (n, remote) = sock.recv_from(&mut buf)?;
-        let buf = &buf
-            .iter()
-            .take(n)
-            .map(|p| unsafe { p.assume_init() })
-            .collect::<Vec<u8>>();
 
-        let remote = remote.as_socket_ipv6().unwrap();
+        // See unstable `MaybeUninit::slice_assume_init_ref`.
+        let buf = unsafe { &*(&buf as *const [MaybeUninit<u8>] as *const [u8]) };
+
+        let buf = &buf[..n];
     }
 }
 
