@@ -12,8 +12,6 @@ use std::time::{Duration, Instant};
 
 use dhcproto::v6::{duid::Duid, DhcpOption, IAPrefix, Message, MessageType, OptionCode, IAPD, ORO};
 use dhcproto::{Decodable, Decoder, Encodable, Encoder, Name};
-use notify::event::{CreateKind, ModifyKind};
-use notify::{Event, EventKind, RecursiveMode, Watcher};
 use rsdsl_dhcp6::util::setsockopt;
 use rsdsl_dhcp6::{Error, Result};
 use rsdsl_ip_config::DsConfig;
@@ -23,7 +21,6 @@ use socket2::{Domain, SockAddr, Socket, Type};
 use trust_dns_proto::serialize::binary::BinDecodable;
 
 const BUFSIZE: usize = 1500;
-const MAX_ATTEMPTS: usize = 4;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum State {
@@ -44,16 +41,6 @@ impl Default for State {
 }
 
 fn main() -> Result<()> {
-    println!("wait for up ppp0");
-    link::wait_up("ppp0".into())?;
-
-    let ds_config = Path::new(rsdsl_ip_config::LOCATION);
-
-    println!("wait for pppoe");
-    while !ds_config.exists() {
-        thread::sleep(Duration::from_secs(8));
-    }
-
     let mut file = File::open(rsdsl_ip_config::LOCATION)?;
     let dsconfig: DsConfig = serde_json::from_reader(&mut file)?;
 
@@ -107,20 +94,6 @@ fn main() -> Result<()> {
 
         thread::sleep(Duration::from_secs(3));
     });
-
-    let state2 = state.clone();
-    let mut watcher = notify::recommended_watcher(move |res: notify::Result<Event>| match res {
-        Ok(event) => match event.kind {
-            EventKind::Create(kind) if kind == CreateKind::File => restart(state2.clone()),
-            EventKind::Modify(kind) if matches!(kind, ModifyKind::Data(_)) => {
-                restart(state2.clone())
-            }
-            _ => {}
-        },
-        Err(e) => println!("watch error: {:?}", e),
-    })?;
-
-    watcher.watch(ds_config, RecursiveMode::NonRecursive)?;
 
     loop {
         let mut buf = [MaybeUninit::new(0); BUFSIZE];
