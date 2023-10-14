@@ -17,7 +17,7 @@ use socket2::{Domain, Socket, Type};
 use trust_dns_proto::serialize::binary::BinDecodable;
 
 const DUID_LOCATION: &str = "/data/dhcp6.duid";
-const TICK_INTERVAL: u64 = 60;
+const TICK_INTERVAL: u64 = 5;
 
 const ALL_DHCPV6_SERVERS: SocketAddrV6 =
     SocketAddrV6::new(Ipv6Addr::new(0xff02, 0, 0, 0, 0, 0, 1, 2), 547, 0, 0);
