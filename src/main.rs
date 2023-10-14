@@ -1,4 +1,3 @@
-use rsdsl_dhcp6::util::setsockopt;
 use rsdsl_dhcp6::{Error, Result};
 
 use std::ffi::CString;
@@ -11,7 +10,10 @@ use std::process;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::{Duration, Instant, SystemTime};
+use std::time::SystemTime;
+
+use tokio::net::{ToSocketAddrs, UdpSocket};
+use tokio::time::{self, Duration, Instant};
 
 use dhcproto::v6::{duid::Duid, DhcpOption, IAPrefix, Message, MessageType, OptionCode, IAPD, ORO};
 use dhcproto::{Decodable, Decoder, Encodable, Encoder, Name};
@@ -20,8 +22,8 @@ use rsdsl_pd_config::PdConfig;
 use socket2::{Domain, SockAddr, Socket, Type};
 use trust_dns_proto::serialize::binary::BinDecodable;
 
-const BUFSIZE: usize = 1500;
 const DUID_LOCATION: &str = "/data/dhcp6.duid";
+const TICK_INTERVAL: u64 = 60;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct Dhcp6 {
@@ -31,8 +33,6 @@ struct Dhcp6 {
 
 impl Dhcp6 {
     fn load_from_disk() -> Result<Self> {
-        let mut lease_file = File::open(rsdsl_pd_config::LOCATION)?;
-
         Ok(Self {
             duid: load_or_generate_duid()?,
             lease: load_lease_optional(),
@@ -41,11 +41,11 @@ impl Dhcp6 {
 }
 
 fn load_or_generate_duid() -> Result<Duid> {
-    match fs::read("/data/dhcp6.duid") {
+    match fs::read(DUID_LOCATION) {
         Ok(duid) => Ok(duid.into()),
         Err(_) => {
             let duid = Duid::uuid(&rand::random::<u128>().to_be_bytes());
-            fs::write("/data/dhcp6.duid", &duid)?;
+            fs::write(DUID_LOCATION, &duid)?;
 
             Ok(duid)
         }
@@ -57,7 +57,8 @@ fn load_lease_optional() -> Option<PdConfig> {
     serde_json::from_reader(&mut file).ok()
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let dhcp6 = Dhcp6::load_from_disk()?;
 
     let sock = Socket::new(Domain::IPV6, Type::DGRAM, None)?;
@@ -66,38 +67,29 @@ fn main() -> Result<()> {
     sock.set_reuse_port(true)?;
     sock.set_reuse_address(true)?;
 
-    // Bind socket to interface.
-    unsafe {
-        let link_index = CString::new("ppp0")?.into_raw();
-
-        setsockopt(
-            sock.as_raw_fd(),
-            libc::SOL_SOCKET,
-            libc::SO_BINDTODEVICE,
-            link_index,
-            "ppp0".len() as i32,
-        )?;
-
-        // Prevent memory leak.
-        let _ = CString::from_raw(link_index);
-    }
-
     let address = SocketAddr::from_str("[::]:546")?;
     sock.bind(&address.into())?;
 
+    let sock: std::net::UdpSocket = sock.into();
+    let sock: UdpSocket = sock.try_into()?;
+
+    sock.bind_device(Some("ppp0".as_bytes()))?;
+
+    let mut interval = time::interval(Duration::from_secs(TICK_INTERVAL));
+
+    let mut buf = [0; 1500];
     loop {
-        let mut buf = [MaybeUninit::new(0); BUFSIZE];
-        let (n, remote) = sock.recv_from(&mut buf)?;
-
-        // See unstable `MaybeUninit::slice_assume_init_ref`.
-        let buf = unsafe { &*(&buf as *const [MaybeUninit<u8>] as *const [u8]) };
-
-        let buf = &buf[..n];
+        tokio::select! {
+            result = sock.recv_from(&mut buf) => {
+            }
+            _ = interval.tick() => {
+            }
+        }
     }
 }
 
-fn send_to_exact(sock: &Socket, buf: &[u8], dst: &SockAddr) -> Result<()> {
-    let n = sock.send_to(buf, dst)?;
+async fn send_to_exact<A: ToSocketAddrs>(sock: &UdpSocket, buf: &[u8], target: A) -> Result<()> {
+    let n = sock.send_to(buf, target).await?;
     if n != buf.len() {
         Err(Error::PartialSend)
     } else {
