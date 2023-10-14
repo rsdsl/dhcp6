@@ -4,6 +4,8 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
+    #[error("no client duid")]
+    NoClientId,
     #[error("no domain name servers")]
     NoDns,
     #[error("no ia_pd")]
@@ -12,8 +14,6 @@ pub enum Error {
     NoIAPDStatus,
     #[error("no ia_prefix")]
     NoIAPrefix,
-    #[error("no client duid")]
-    NoClientId,
     #[error("no server duid")]
     NoServerId,
     #[error("incomplete transmission")]
