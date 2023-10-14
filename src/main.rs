@@ -1,16 +1,9 @@
 use rsdsl_dhcp6::util::*;
 use rsdsl_dhcp6::{Error, Result};
 
-use std::ffi::CString;
 use std::fs::{self, File};
-use std::mem::MaybeUninit;
 use std::net::{Ipv6Addr, SocketAddr, SocketAddrV6};
-use std::os::fd::AsRawFd;
-use std::path::Path;
-use std::process;
 use std::str::FromStr;
-use std::sync::{Arc, Mutex};
-use std::thread;
 use std::time::SystemTime;
 
 use tokio::net::{ToSocketAddrs, UdpSocket};
@@ -20,7 +13,7 @@ use dhcproto::v6::{duid::Duid, DhcpOption, IAPrefix, Message, MessageType, Optio
 use dhcproto::{Decodable, Decoder, Encodable, Encoder, Name};
 use rsdsl_ip_config::DsConfig;
 use rsdsl_pd_config::PdConfig;
-use socket2::{Domain, SockAddr, Socket, Type};
+use socket2::{Domain, Socket, Type};
 use sysinfo::{ProcessExt, Signal, System, SystemExt};
 use trust_dns_proto::serialize::binary::BinDecodable;
 
@@ -99,10 +92,10 @@ async fn main() -> Result<()> {
                 let buf = &buf[..n];
 
                 logged_handle(buf, raddr);
-                logged_tick(&sock, &dhcp6);
+                logged_tick(&sock, &dhcp6).await;
             }
             _ = interval.tick() => {
-                logged_tick(&sock, &dhcp6);
+                logged_tick(&sock, &dhcp6).await;
             }
         }
     }
