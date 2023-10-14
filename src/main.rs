@@ -1,4 +1,4 @@
-use rsdsl_dhcp6::util::expired;
+use rsdsl_dhcp6::util::*;
 use rsdsl_dhcp6::{Error, Result};
 
 use std::ffi::CString;
@@ -25,6 +25,9 @@ use trust_dns_proto::serialize::binary::BinDecodable;
 
 const DUID_LOCATION: &str = "/data/dhcp6.duid";
 const TICK_INTERVAL: u64 = 60;
+
+const ALL_DHCPV6_SERVERS: SocketAddrV6 =
+    SocketAddrV6::new(Ipv6Addr::new(0xff02, 0, 0, 0, 0, 0, 1, 2), 547, 0, 0);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct Dhcp6 {
@@ -88,24 +91,50 @@ async fn main() -> Result<()> {
                 let buf = &buf[..n];
 
                 logged_handle(buf, raddr);
-                logged_tick(&dhcp6);
+                logged_tick(&sock, &dhcp6);
             }
             _ = interval.tick() => {
-                logged_tick(&dhcp6);
+                logged_tick(&sock, &dhcp6);
             }
         }
     }
 }
 
-fn logged_tick(dhcp6: &Dhcp6) {
-    match tick(dhcp6) {
+async fn logged_tick(sock: &UdpSocket, dhcp6: &Dhcp6) {
+    match tick(sock, dhcp6).await {
         Ok(_) => {}
         Err(e) => println!("[warn] tick: {}", e),
     }
 }
 
-fn tick(dhcp6: &Dhcp6) -> Result<()> {
-    Ok(())
+async fn tick(sock: &UdpSocket, dhcp6: &Dhcp6) -> Result<()> {
+    match &dhcp6.lease {
+        None => {
+            let mut solicit = Message::new(MessageType::Solicit);
+            let opts = solicit.opts_mut();
+
+            opts.insert(DhcpOption::ClientId(dhcp6.duid.as_ref().to_vec()));
+            opts.insert(DhcpOption::RapidCommit);
+            opts.insert(DhcpOption::IAPD(IAPD {
+                id: 1,
+                t1: 0,
+                t2: 0,
+                opts: Default::default(),
+            }));
+            opts.insert(DhcpOption::ORO(ORO {
+                opts: vec![OptionCode::AftrName, OptionCode::DomainNameServers],
+            }));
+
+            let mut buf = Vec::new();
+            solicit.encode(&mut Encoder::new(&mut buf))?;
+
+            send_to_exact(sock, &buf, ALL_DHCPV6_SERVERS).await?;
+
+            println!("[info] solicit");
+            Ok(())
+        }
+        Some(lease) => Ok(()),
+    }
 }
 
 fn logged_handle(buf: &[u8], raddr: SocketAddr) {
