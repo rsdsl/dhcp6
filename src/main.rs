@@ -92,23 +92,23 @@ async fn main() -> Result<()> {
                 let buf = &buf[..n];
 
                 logged_handle(&dhcp6, buf, raddr);
-                logged_tick(&sock, &dhcp6).await;
+                logged_tick(&dhcp6, &sock).await;
             }
             _ = interval.tick() => {
-                logged_tick(&sock, &dhcp6).await;
+                logged_tick(&dhcp6, &sock).await;
             }
         }
     }
 }
 
-async fn logged_tick(sock: &UdpSocket, dhcp6: &Dhcp6) {
-    match tick(sock, dhcp6).await {
+async fn logged_tick(dhcp6: &Dhcp6, sock: &UdpSocket) {
+    match tick(dhcp6, sock).await {
         Ok(_) => {}
         Err(e) => println!("[warn] tick: {}", e),
     }
 }
 
-async fn tick(sock: &UdpSocket, dhcp6: &Dhcp6) -> Result<()> {
+async fn tick(dhcp6: &Dhcp6, sock: &UdpSocket) -> Result<()> {
     match &dhcp6.lease {
         None => {
             let mut solicit = Message::new(MessageType::Solicit);
