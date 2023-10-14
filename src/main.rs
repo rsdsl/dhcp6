@@ -242,6 +242,24 @@ fn handle(dhcp6: &mut Dhcp6, buf: &[u8], raddr: SocketAddr) -> Result<()> {
                 }
             }
         }
+        MessageType::Decline => {
+            // Declined solicitations don't have an impact, logging them is enough.
+            // If a renewal or rebind is declined, start over by soliciting.
+            // Inform netlinkd of the validity loss.
+
+            if dhcp6.lease.is_some() {
+                dhcp6.lease = None;
+
+                // Inexistent lease causes deconfiguration.
+                fs::remove_file(rsdsl_pd_config::LOCATION)?;
+
+                for netlinkd in System::default().processes_by_exact_name("/bin/rsdsl_netlinkd") {
+                    netlinkd.kill_with(Signal::User1);
+                }
+            }
+
+            println!("[info] manual invalidation");
+        }
         _ => println!(
             "[warn] <- [{}] unhandled message type {:?}",
             raddr,
