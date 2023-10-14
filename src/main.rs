@@ -84,6 +84,11 @@ async fn main() -> Result<()> {
     loop {
         tokio::select! {
             result = sock.recv_from(&mut buf) => {
+                let (n, raddr) = result?;
+                let buf = &buf[..n];
+
+                logged_handle(buf, raddr);
+                logged_tick();
             }
             _ = interval.tick() => {
                 logged_tick();
@@ -100,5 +105,16 @@ fn logged_tick() {
 }
 
 fn tick() -> Result<()> {
+    Ok(())
+}
+
+fn logged_handle(buf: &[u8], raddr: SocketAddr) {
+    match handle(buf, raddr) {
+        Ok(_) => {}
+        Err(e) => println!("[warn] handle from {}: {}", raddr, e),
+    }
+}
+
+fn handle(buf: &[u8], raddr: SocketAddr) -> Result<()> {
     Ok(())
 }
