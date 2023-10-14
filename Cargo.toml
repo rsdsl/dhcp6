@@ -12,6 +12,7 @@ rsdsl_ip_config = { git = "https://github.com/rsdsl/ip_config.git", version = "0
 rsdsl_pd_config = { git = "https://github.com/rsdsl/pd_config.git", version = "0.1.0" }
 serde_json = "1.0"
 socket2 = "0.5.3"
+sysinfo = "0.29.10"
 thiserror = "1.0"
 tokio = { version = "1.0", features = ["rt", "macros"] }
 trust-dns-proto = "0.22.0"

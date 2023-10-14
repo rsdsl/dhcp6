@@ -21,6 +21,7 @@ use dhcproto::{Decodable, Decoder, Encodable, Encoder, Name};
 use rsdsl_ip_config::DsConfig;
 use rsdsl_pd_config::PdConfig;
 use socket2::{Domain, SockAddr, Socket, Type};
+use sysinfo::{ProcessExt, Signal, System, SystemExt};
 use trust_dns_proto::serialize::binary::BinDecodable;
 
 const DUID_LOCATION: &str = "/data/dhcp6.duid";
@@ -80,6 +81,13 @@ async fn main() -> Result<()> {
     let sock: UdpSocket = sock.try_into()?;
 
     sock.bind_device(Some("ppp0".as_bytes()))?;
+
+    // If a valid lease is present on disk, inform netlinkd immediately.
+    if dhcp6.lease.is_some() {
+        for netlinkd in System::default().processes_by_exact_name("/bin/rsdsl_netlinkd") {
+            netlinkd.kill_with(Signal::User1);
+        }
+    }
 
     let mut interval = time::interval(Duration::from_secs(TICK_INTERVAL));
 
