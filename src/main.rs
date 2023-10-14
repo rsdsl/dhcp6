@@ -1,3 +1,4 @@
+use rsdsl_dhcp6::util::expired;
 use rsdsl_dhcp6::{Error, Result};
 
 use std::ffi::CString;
@@ -54,7 +55,9 @@ fn load_or_generate_duid() -> Result<Duid> {
 
 fn load_lease_optional() -> Option<PdConfig> {
     let mut file = File::open(rsdsl_pd_config::LOCATION).ok()?;
-    serde_json::from_reader(&mut file).ok()
+    let lease = serde_json::from_reader(&mut file).ok();
+
+    lease.filter(|lease| !expired(lease))
 }
 
 #[tokio::main]
