@@ -36,11 +36,11 @@ pub async fn send_to_exact<A: ToSocketAddrs>(
 }
 
 pub fn inform() {
-    for netlinkd in System::default().processes_by_exact_name("/bin/rsdsl_netlinkd") {
+    for netlinkd in System::new_all().processes_by_exact_name("rsdsl_netlinkd") {
         netlinkd.kill_with(Signal::User1);
     }
 
-    for dslite in System::default().processes_by_exact_name("/bin/rsdsl_dslite") {
+    for dslite in System::new_all().processes_by_exact_name("rsdsl_dslite") {
         dslite.kill_with(Signal::User1);
     }
 }
