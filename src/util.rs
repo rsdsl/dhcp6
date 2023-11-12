@@ -45,8 +45,9 @@ pub fn inform() {
     }
 }
 
-pub fn hexdump(data: &[u8]) -> Result<String> {
-    data.iter()
+pub fn hexdump<A: AsRef<[u8]>>(data: A) -> Result<String> {
+    data.as_ref()
+        .iter()
         .map(|byte| format!("{:02x}", byte))
         .reduce(|acc, ch| acc + &ch)
         .ok_or(Error::NoData)
