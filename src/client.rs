@@ -57,17 +57,17 @@ impl Lease {
 
     /// Waits until a renewal is needed.
     pub async fn wait_renew(&self) {
-        tokio::time::sleep_until((self.timestamp + self.t1).into()).await
+        tokio::time::sleep_until(self.timestamp + self.t1).await
     }
 
     /// Waits until a rebind is needed.
     pub async fn wait_rebind(&self) {
-        tokio::time::sleep_until((self.timestamp + self.t2).into()).await
+        tokio::time::sleep_until(self.timestamp + self.t2).await
     }
 
     /// Waits until the lease expires.
     pub async fn wait_expire(&self) {
-        tokio::time::sleep_until((self.timestamp + self.valid_lifetime).into()).await
+        tokio::time::sleep_until(self.timestamp + self.valid_lifetime).await
     }
 }
 
