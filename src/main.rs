@@ -11,7 +11,7 @@ use tokio::net::UdpSocket;
 use tokio::signal::unix::{signal, SignalKind};
 use tokio::time::Duration;
 
-use dhcproto::v6::{duid::Duid, DhcpOption, Message, MessageType, OptionCode, IAPD, ORO};
+use dhcproto::v6::{duid::Duid, DhcpOption, IAPrefix, Message, MessageType, OptionCode, IAPD, ORO};
 use dhcproto::{Decodable, Decoder, Encodable, Encoder, Name};
 use rsdsl_pd_config::PdConfig;
 use socket2::{Domain, Socket, Type};
@@ -39,10 +39,13 @@ impl Dhcp6 {
 
         Ok(Self {
             duid: load_or_generate_duid()?,
-            lease,
+            lease: lease.clone(),
 
             xid: [0; 3],
-            server_id: lease.map(|lease| lease.server_id).unwrap_or(Vec::default()),
+            server_id: lease
+                .clone()
+                .map(|lease| lease.server_id)
+                .unwrap_or(Vec::default()),
             last_sent: Packet::Advertise, // Can never occur naturally, forces XID generation.
             iapd: lease
                 .map(|lease| IAPD {
@@ -55,7 +58,9 @@ impl Dhcp6 {
                         prefix_len: lease.len,
                         prefix_ip: lease.prefix,
                         opts: Default::default(),
-                    })],
+                    })]
+                    .into_iter()
+                    .collect(),
                 })
                 .unwrap_or(IAPD {
                     id: 1,
@@ -91,8 +96,6 @@ async fn main() -> Result<()> {
     println!("[info] init");
 
     let mut dhcp6 = Dhcp6::load_from_disk()?;
-
-    println!("[dbg] {:?}", dhcp6);
 
     let mut dhcp6c = Dhcp6c::new(
         dhcp6.lease.clone().and_then(|lease| {
@@ -325,7 +328,38 @@ async fn send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> Resu
 
             opts.insert(DhcpOption::ClientId(dhcp6.duid.as_ref().to_vec()));
             opts.insert(DhcpOption::ServerId(dhcp6.server_id.clone()));
-            opts.insert(DhcpOption::IAPD(dhcp6.iapd.clone()));
+            opts.insert(DhcpOption::IAPD(IAPD {
+                id: 1,
+                t1: 0,
+                t2: 0,
+                opts: vec![DhcpOption::IAPrefix(IAPrefix {
+                    preferred_lifetime: 0,
+                    valid_lifetime: 0,
+                    prefix_len: if let DhcpOption::IAPrefix(ia_prefix) = dhcp6
+                        .iapd
+                        .opts
+                        .get(OptionCode::IAPrefix)
+                        .ok_or(Error::NoIAPrefix)?
+                    {
+                        ia_prefix.prefix_len
+                    } else {
+                        unreachable!()
+                    },
+                    prefix_ip: if let DhcpOption::IAPrefix(ia_prefix) = dhcp6
+                        .iapd
+                        .opts
+                        .get(OptionCode::IAPrefix)
+                        .ok_or(Error::NoIAPrefix)?
+                    {
+                        ia_prefix.prefix_ip
+                    } else {
+                        unreachable!()
+                    },
+                    opts: Default::default(),
+                })]
+                .into_iter()
+                .collect(),
+            }));
             opts.insert(DhcpOption::ORO(ORO {
                 opts: vec![OptionCode::AftrName, OptionCode::DomainNameServers],
             }));
@@ -343,7 +377,38 @@ async fn send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> Resu
 
             opts.insert(DhcpOption::ClientId(dhcp6.duid.as_ref().to_vec()));
             opts.insert(DhcpOption::ServerId(dhcp6.server_id.clone()));
-            opts.insert(DhcpOption::IAPD(dhcp6.iapd.clone()));
+            opts.insert(DhcpOption::IAPD(IAPD {
+                id: 1,
+                t1: 0,
+                t2: 0,
+                opts: vec![DhcpOption::IAPrefix(IAPrefix {
+                    preferred_lifetime: 0,
+                    valid_lifetime: 0,
+                    prefix_len: if let DhcpOption::IAPrefix(ia_prefix) = dhcp6
+                        .iapd
+                        .opts
+                        .get(OptionCode::IAPrefix)
+                        .ok_or(Error::NoIAPrefix)?
+                    {
+                        ia_prefix.prefix_len
+                    } else {
+                        unreachable!()
+                    },
+                    prefix_ip: if let DhcpOption::IAPrefix(ia_prefix) = dhcp6
+                        .iapd
+                        .opts
+                        .get(OptionCode::IAPrefix)
+                        .ok_or(Error::NoIAPrefix)?
+                    {
+                        ia_prefix.prefix_ip
+                    } else {
+                        unreachable!()
+                    },
+                    opts: Default::default(),
+                })]
+                .into_iter()
+                .collect(),
+            }));
             opts.insert(DhcpOption::ORO(ORO {
                 opts: vec![OptionCode::AftrName, OptionCode::DomainNameServers],
             }));
@@ -360,7 +425,38 @@ async fn send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> Resu
             let opts = rebind.opts_mut();
 
             opts.insert(DhcpOption::ClientId(dhcp6.duid.as_ref().to_vec()));
-            opts.insert(DhcpOption::IAPD(dhcp6.iapd.clone()));
+            opts.insert(DhcpOption::IAPD(IAPD {
+                id: 1,
+                t1: 0,
+                t2: 0,
+                opts: vec![DhcpOption::IAPrefix(IAPrefix {
+                    preferred_lifetime: 0,
+                    valid_lifetime: 0,
+                    prefix_len: if let DhcpOption::IAPrefix(ia_prefix) = dhcp6
+                        .iapd
+                        .opts
+                        .get(OptionCode::IAPrefix)
+                        .ok_or(Error::NoIAPrefix)?
+                    {
+                        ia_prefix.prefix_len
+                    } else {
+                        unreachable!()
+                    },
+                    prefix_ip: if let DhcpOption::IAPrefix(ia_prefix) = dhcp6
+                        .iapd
+                        .opts
+                        .get(OptionCode::IAPrefix)
+                        .ok_or(Error::NoIAPrefix)?
+                    {
+                        ia_prefix.prefix_ip
+                    } else {
+                        unreachable!()
+                    },
+                    opts: Default::default(),
+                })]
+                .into_iter()
+                .collect(),
+            }));
             opts.insert(DhcpOption::ORO(ORO {
                 opts: vec![OptionCode::AftrName, OptionCode::DomainNameServers],
             }));
