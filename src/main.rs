@@ -114,9 +114,30 @@ async fn main() -> Result<()> {
 
                 let is_opened = *dhcp6c_rx.borrow_and_update();
                 if is_opened {
-                    todo!("write lease + inform")
+                    let pd_config = dhcp6.lease.clone().ok_or(Error::LeaseNotFound)?;
+
+                    let mut file = File::create(rsdsl_pd_config::LOCATION)?;
+                    serde_json::to_writer_pretty(&mut file, &pd_config)?;
+
+                    inform();
+
+                    println!(
+                        "[info] <> obtain lease {}/{} t1={} t2={} preflft={} validlft={} dns1={} dns2={} aftr={:?}",
+                        pd_config.prefix,
+                        pd_config.len,
+                        pd_config.t1,
+                        pd_config.t2,
+                        pd_config.preflft,
+                        pd_config.validlft,
+                        pd_config.dns1,
+                        pd_config.dns2,
+                        pd_config.aftr
+                    );
                 } else {
-                    todo!("del lease + inform")
+                    fs::remove_file(rsdsl_pd_config::LOCATION)?;
+                    inform();
+
+                    println!("[info] <> expire");
                 }
             }
 

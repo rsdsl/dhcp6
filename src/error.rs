@@ -6,6 +6,8 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
+    #[error("lease has been obtained but doesn't exist")]
+    LeaseNotFound,
     #[error("no client duid")]
     NoClientId,
     #[error("no hexdump data")]
