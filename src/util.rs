@@ -1,10 +1,12 @@
 use crate::{Error, Result};
 
+use std::fs::File;
 use std::time::{Duration, SystemTime};
 
 use tokio::net::{ToSocketAddrs, UdpSocket};
 use tokio::time::Instant;
 
+use rsdsl_ip_config::DsConfig;
 use rsdsl_pd_config::PdConfig;
 use sysinfo::{ProcessExt, Signal, System, SystemExt};
 
@@ -56,4 +58,11 @@ pub fn hexdump<A: AsRef<[u8]>>(data: A) -> Result<String> {
 
 pub fn sys_to_instant(sys: SystemTime) -> Result<Instant> {
     Ok(Instant::now() - sys.elapsed()?)
+}
+
+pub fn read_ds_config() -> Option<DsConfig> {
+    let mut file = File::open(rsdsl_ip_config::LOCATION).ok()?;
+    let ds_config = serde_json::from_reader(&mut file).ok()?;
+
+    Some(ds_config)
 }

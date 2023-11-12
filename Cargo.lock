@@ -456,6 +456,7 @@ version = "0.3.0-dev"
 dependencies = [
  "dhcproto",
  "rand",
+ "rsdsl_ip_config",
  "rsdsl_pd_config",
  "serde_json",
  "socket2",
@@ -463,6 +464,14 @@ dependencies = [
  "thiserror",
  "tokio",
  "trust-dns-proto",
+]
+
+[[package]]
+name = "rsdsl_ip_config"
+version = "0.2.4"
+source = "git+https://github.com/rsdsl/ip_config.git#b68885346f4aa8a3216645c65e92f7c7a2c5ff51"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -520,6 +529,15 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
+]
+
+[[package]]
+name = "signal-hook-registry"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d8229b473baa5980ac72ef434c4415e70c4b5e71b423043adb4ba059f89c99a1"
+dependencies = [
+ "libc",
 ]
 
 [[package]]
@@ -631,6 +649,7 @@ dependencies = [
  "mio",
  "num_cpus",
  "pin-project-lite",
+ "signal-hook-registry",
  "socket2",
  "tokio-macros",
  "windows-sys",

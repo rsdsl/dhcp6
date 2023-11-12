@@ -8,6 +8,7 @@ use std::str::FromStr;
 use std::time::SystemTime;
 
 use tokio::net::UdpSocket;
+use tokio::signal::unix::{signal, SignalKind};
 use tokio::time::Duration;
 
 use dhcproto::v6::{duid::Duid, DhcpOption, Message, MessageType, OptionCode, IAPD, ORO};
@@ -88,6 +89,8 @@ async fn main() -> Result<()> {
     );
     let mut dhcp6c_rx = dhcp6c.opened();
 
+    let mut sigusr1 = signal(SignalKind::user_defined1())?;
+
     let sock = Socket::new(Domain::IPV6, Type::DGRAM, None)?;
 
     sock.set_only_v6(true)?;
@@ -106,6 +109,13 @@ async fn main() -> Result<()> {
     loop {
         tokio::select! {
             biased;
+
+            _ = sigusr1.recv() => {
+                match read_ds_config() {
+                    Some(ds_config) if ds_config.v6.is_some() => dhcp6c.up(),
+                    _ => dhcp6c.down(),
+                }
+            },
 
             packet = dhcp6c.to_send() => send_dhcp6(&mut dhcp6, &sock, packet).await?,
 
