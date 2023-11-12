@@ -134,8 +134,14 @@ async fn main() -> Result<()> {
 
             _ = sigusr1.recv() => {
                 match read_ds_config() {
-                    Some(ds_config) if ds_config.v6.is_some() => dhcp6c.up(),
-                    _ => dhcp6c.down(),
+                    Some(ds_config) if ds_config.v6.is_some() => {
+                        println!("[info] <> ipv6 link up");
+                        dhcp6c.up();
+                    }
+                    _ => {
+                        println!("[info] <> ipv6 link down");
+                        dhcp6c.down();
+                    }
                 }
             },
 
