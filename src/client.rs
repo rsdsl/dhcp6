@@ -206,6 +206,11 @@ impl Dhcp6c {
         }
     }
 
+    /// Reports whether the `Dhcp6c` is in the `Soliciting` state.
+    pub fn is_soliciting(&self) -> bool {
+        self.state == Dhcp6cState::Soliciting
+    }
+
     /// Returns a watch channel receiver that can be used to monitor whether
     /// the `Dhcp6c` has a valid and routed prefix.
     /// This is equivalent to the `Renewing`, `Rebinding` and `Opened` states.
