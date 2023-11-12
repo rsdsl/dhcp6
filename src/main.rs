@@ -177,7 +177,7 @@ async fn main() -> Result<()> {
                     fs::remove_file(rsdsl_pd_config::LOCATION)?;
                     inform();
 
-                    println!("[info] <> expire");
+                    println!("[info] <> invalidate");
                 }
             }
 
