@@ -127,7 +127,7 @@ async fn main() -> Result<()> {
 
     let sock: UdpSocket = sock.try_into()?;
 
-    sock.bind_device(Some("virtlab0".as_bytes()))?;
+    sock.bind_device(Some("ppp0".as_bytes()))?;
 
     let mut buf = [0; 1500];
     loop {
