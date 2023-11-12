@@ -35,19 +35,34 @@ struct Dhcp6 {
 
 impl Dhcp6 {
     fn load_from_disk() -> Result<Self> {
+        let lease = load_lease_optional();
+
         Ok(Self {
             duid: load_or_generate_duid()?,
-            lease: load_lease_optional(),
+            lease,
 
             xid: [0; 3],
-            server_id: Vec::default(),
+            server_id: lease.map(|lease| lease.server_id).unwrap_or(Vec::default()),
             last_sent: Packet::Advertise, // Can never occur naturally, forces XID generation.
-            iapd: IAPD {
-                id: 1,
-                t1: 0,
-                t2: 0,
-                opts: Default::default(),
-            },
+            iapd: lease
+                .map(|lease| IAPD {
+                    id: 1,
+                    t1: 0,
+                    t2: 0,
+                    opts: vec![DhcpOption::IAPrefix(IAPrefix {
+                        preferred_lifetime: 0,
+                        valid_lifetime: 0,
+                        prefix_len: lease.len,
+                        prefix_ip: lease.prefix,
+                        opts: Default::default(),
+                    })],
+                })
+                .unwrap_or(IAPD {
+                    id: 1,
+                    t1: 0,
+                    t2: 0,
+                    opts: Default::default(),
+                }),
         })
     }
 }
@@ -77,6 +92,8 @@ async fn main() -> Result<()> {
 
     let mut dhcp6 = Dhcp6::load_from_disk()?;
 
+    println!("[dbg] {:?}", dhcp6);
+
     let mut dhcp6c = Dhcp6c::new(
         dhcp6.lease.clone().and_then(|lease| {
             Some(Lease {
@@ -105,7 +122,7 @@ async fn main() -> Result<()> {
     let sock: std::net::UdpSocket = sock.into();
     let sock: UdpSocket = sock.try_into()?;
 
-    sock.bind_device(Some("ppp0".as_bytes()))?;
+    sock.bind_device(Some("virtlab0".as_bytes()))?;
 
     let mut buf = [0; 1500];
     loop {
