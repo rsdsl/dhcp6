@@ -3,6 +3,7 @@ use crate::{Error, Result};
 use std::time::{Duration, SystemTime};
 
 use tokio::net::{ToSocketAddrs, UdpSocket};
+use tokio::time::Instant;
 
 use rsdsl_pd_config::PdConfig;
 use sysinfo::{ProcessExt, Signal, System, SystemExt};
@@ -51,4 +52,8 @@ pub fn hexdump<A: AsRef<[u8]>>(data: A) -> Result<String> {
         .map(|byte| format!("{:02x}", byte))
         .reduce(|acc, ch| acc + &ch)
         .ok_or(Error::NoData)
+}
+
+pub fn sys_to_instant(sys: SystemTime) -> Result<Instant> {
+    Ok(Instant::now() - sys.elapsed()?)
 }

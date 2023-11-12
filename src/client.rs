@@ -1,10 +1,8 @@
 //! Minimal DHCPv6 client implementation with Rapid Commit support
 //! and auto-rebinding after link disruption.
 
-use std::time::{Duration, Instant};
-
 use tokio::sync::{mpsc, watch};
-use tokio::time::Interval;
+use tokio::time::{Duration, Instant, Interval};
 
 /// Possible states of the client.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
