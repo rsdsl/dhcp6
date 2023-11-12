@@ -123,6 +123,8 @@ async fn main() -> Result<()> {
     sock.bind(&address.into())?;
 
     let sock: std::net::UdpSocket = sock.into();
+    sock.set_nonblocking(true)?;
+
     let sock: UdpSocket = sock.try_into()?;
 
     sock.bind_device(Some("virtlab0".as_bytes()))?;
