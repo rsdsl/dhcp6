@@ -1,4 +1,6 @@
-use std::{ffi, io, net};
+use std::{ffi, io, net, time};
+
+use tokio::sync::watch;
 
 use thiserror::Error;
 
@@ -22,6 +24,10 @@ pub enum Error {
     PartialSend,
     #[error("too few domain name servers (got {0}, need at least 2)")]
     TooFewDns(usize),
+    #[error("received packet with wrong client duid (got {0}, want {1})")]
+    WrongClientId(String, String),
+    #[error("received packet with wrong server duid (got {0}, want {1})")]
+    WrongServerId(String, String),
 
     #[error("parse address: {0}")]
     AddrParse(#[from] net::AddrParseError),
@@ -29,6 +35,11 @@ pub enum Error {
     Io(#[from] io::Error),
     #[error("nul: {0}")]
     Nul(#[from] ffi::NulError),
+    #[error("system time monotonicity error: {0}")]
+    SystemTime(#[from] time::SystemTimeError),
+
+    #[error("can't receive from tokio watch channel: {0}")]
+    WatchRecv(#[from] watch::error::RecvError),
 
     #[error("dhcproto decode: {0}")]
     DhcprotoDecode(#[from] dhcproto::error::DecodeError),
