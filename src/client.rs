@@ -138,7 +138,10 @@ impl Dhcp6c {
                     if let Some(packet) = self.timeout_positive() { return packet; }
                 } else { // TO- event
                     if let Some(packet) = self.timeout_negative() { return packet; }
-                }
+                },
+                Some(_) = option_wait_renew(self.lease.as_ref()) => if let Some(packet) = self.t1() { return packet; },
+                Some(_) = option_wait_rebind(self.lease.as_ref()) => if let Some(packet) = self.t2() { return packet; },
+                Some(_) = option_wait_expire(self.lease.as_ref()) => if let Some(packet) = self.expire() { return packet; },
             }
         }
     }
@@ -250,6 +253,48 @@ impl Dhcp6c {
         }
     }
 
+    fn t1(&mut self) -> Option<Packet> {
+        match self.state {
+            Dhcp6cState::Opened => {
+                self.restart_timer.reset();
+                self.state = Dhcp6cState::Renewing;
+
+                Some(Packet::Renew)
+            }
+            _ => None, // illegal
+        }
+    }
+
+    fn t2(&mut self) -> Option<Packet> {
+        match self.state {
+            Dhcp6cState::Renewing => {
+                self.restart_timer.reset();
+                self.state = Dhcp6cState::Rebinding;
+
+                Some(Packet::Rebind)
+            }
+            _ => None, // illegal
+        }
+    }
+
+    fn expire(&mut self) -> Option<Packet> {
+        match self.state {
+            Dhcp6cState::Rebinding => {
+                self.upper_status_tx
+                    .send(false)
+                    .expect("upper status channel is closed");
+                self.state = Dhcp6cState::Soliciting;
+
+                Some(Packet::Solicit)
+            }
+            Dhcp6cState::Rerouting => {
+                self.state = Dhcp6cState::Soliciting;
+                Some(Packet::Solicit)
+            }
+            _ => None, // illegal
+        }
+    }
+
     fn ra(&mut self) {
         if self.state == Dhcp6cState::Soliciting {
             self.restart_timer.reset();
@@ -276,5 +321,35 @@ impl Dhcp6c {
             }
             Dhcp6cState::Renewing | Dhcp6cState::Rebinding => self.state = Dhcp6cState::Opened,
         }
+    }
+}
+
+async fn option_wait_renew(lease: Option<&Lease>) -> Option<()> {
+    match lease {
+        Some(lease) => {
+            lease.wait_renew().await;
+            Some(())
+        }
+        None => None,
+    }
+}
+
+async fn option_wait_rebind(lease: Option<&Lease>) -> Option<()> {
+    match lease {
+        Some(lease) => {
+            lease.wait_rebind().await;
+            Some(())
+        }
+        None => None,
+    }
+}
+
+async fn option_wait_expire(lease: Option<&Lease>) -> Option<()> {
+    match lease {
+        Some(lease) => {
+            lease.wait_expire().await;
+            Some(())
+        }
+        None => None,
     }
 }
