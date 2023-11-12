@@ -21,20 +21,13 @@ pub enum Dhcp6cState {
 
 /// List of valid packet types for this implementation.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum PacketType {
+pub enum Packet {
     Solicit,
     Advertise,
     Request,
     Reply,
     Renew,
     Rebind,
-}
-
-/// A DHCPv6 packet.
-#[derive(Debug)]
-pub struct Packet {
-    pub ty: PacketType,
-    pub success: bool,
 }
 
 /// Information on the various timers of a lease.
@@ -155,10 +148,10 @@ impl Dhcp6c {
     /// Feeds a packet into the state machine for processing.
     /// Can trigger the RA, RR+ or RR- events.
     pub fn from_recv(&mut self, packet: Packet) {
-        match packet.ty {
-            PacketType::Solicit | PacketType::Request | PacketType::Renew | PacketType::Rebind => {} // illegal
-            PacketType::Advertise => self.ra(),
-            PacketType::Reply => self.rr(),
+        match packet {
+            Packet::Solicit | Packet::Request | Packet::Renew | Packet::Rebind => {} // illegal
+            Packet::Advertise => self.ra(),
+            Packet::Reply => self.rr(),
         }
     }
 
@@ -177,10 +170,7 @@ impl Dhcp6c {
             self.restart_counter = self.max_request;
 
             self.output_tx
-                .send(Packet {
-                    ty: PacketType::Rebind,
-                    success: false,
-                })
+                .send(Packet::Rebind)
                 .expect("output channel is closed");
             self.restart_counter -= 1;
 
@@ -191,10 +181,7 @@ impl Dhcp6c {
     fn up_negative(&mut self) {
         if self.state == Dhcp6cState::Starting {
             self.output_tx
-                .send(Packet {
-                    ty: PacketType::Solicit,
-                    success: false,
-                })
+                .send(Packet::Solicit)
                 .expect("output channel is closed");
 
             self.state = Dhcp6cState::Soliciting;
@@ -229,31 +216,16 @@ impl Dhcp6c {
     fn timeout_positive(&mut self) -> Option<Packet> {
         match self.state {
             Dhcp6cState::Starting | Dhcp6cState::Opened => None, // illegal
-            Dhcp6cState::Soliciting => Some(Packet {
-                ty: PacketType::Solicit,
-                success: false,
-            }),
+            Dhcp6cState::Soliciting => Some(Packet::Solicit),
             Dhcp6cState::Requesting => {
                 self.restart_counter -= 1;
-                Some(Packet {
-                    ty: PacketType::Request,
-                    success: false,
-                })
+                Some(Packet::Request)
             }
-            Dhcp6cState::Renewing => Some(Packet {
-                ty: PacketType::Renew,
-                success: false,
-            }),
-            Dhcp6cState::Rebinding => Some(Packet {
-                ty: PacketType::Rebind,
-                success: false,
-            }),
+            Dhcp6cState::Renewing => Some(Packet::Renew),
+            Dhcp6cState::Rebinding => Some(Packet::Rebind),
             Dhcp6cState::Rerouting => {
                 self.restart_counter -= 1;
-                Some(Packet {
-                    ty: PacketType::Rebind,
-                    success: false,
-                })
+                Some(Packet::Rebind)
             }
         }
     }
@@ -261,31 +233,16 @@ impl Dhcp6c {
     fn timeout_negative(&mut self) -> Option<Packet> {
         match self.state {
             Dhcp6cState::Starting | Dhcp6cState::Opened => None, // illegal
-            Dhcp6cState::Soliciting => Some(Packet {
-                ty: PacketType::Solicit,
-                success: false,
-            }),
+            Dhcp6cState::Soliciting => Some(Packet::Solicit),
             Dhcp6cState::Requesting => {
                 self.state = Dhcp6cState::Soliciting;
-                Some(Packet {
-                    ty: PacketType::Solicit,
-                    success: false,
-                })
+                Some(Packet::Solicit)
             }
-            Dhcp6cState::Renewing => Some(Packet {
-                ty: PacketType::Renew,
-                success: false,
-            }),
-            Dhcp6cState::Rebinding => Some(Packet {
-                ty: PacketType::Rebind,
-                success: false,
-            }),
+            Dhcp6cState::Renewing => Some(Packet::Renew),
+            Dhcp6cState::Rebinding => Some(Packet::Rebind),
             Dhcp6cState::Rerouting => {
                 self.state = Dhcp6cState::Soliciting;
-                Some(Packet {
-                    ty: PacketType::Solicit,
-                    success: false,
-                })
+                Some(Packet::Solicit)
             }
         }
     }
@@ -296,10 +253,7 @@ impl Dhcp6c {
             self.restart_counter = self.max_request;
 
             self.output_tx
-                .send(Packet {
-                    ty: PacketType::Request,
-                    success: false,
-                })
+                .send(Packet::Request)
                 .expect("output channel is closed");
             self.restart_counter -= 1;
 
