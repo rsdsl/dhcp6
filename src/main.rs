@@ -4,12 +4,13 @@ use rsdsl_dhcp6::{Error, Result};
 
 use std::fs::{self, File};
 use std::net::{IpAddr, Ipv6Addr, SocketAddr, SocketAddrV6};
+use std::path::Path;
 use std::str::FromStr;
 use std::time::SystemTime;
 
 use tokio::net::UdpSocket;
 use tokio::signal::unix::{signal, SignalKind};
-use tokio::time::Duration;
+use tokio::time::{sleep, Duration};
 
 use dhcproto::v6::{duid::Duid, DhcpOption, IAPrefix, Message, MessageType, OptionCode, IAPD, ORO};
 use dhcproto::{Decodable, Decoder, Encodable, Encoder, Name};
@@ -112,6 +113,20 @@ async fn main() -> Result<()> {
     let mut dhcp6c_rx = dhcp6c.opened();
 
     let mut sigusr1 = signal(SignalKind::user_defined1())?;
+
+    println!("[info] wait for pppoe");
+
+    let ds_config_path = Path::new(rsdsl_ip_config::LOCATION);
+    let mut already_up = false;
+    while !ds_config_path.exists() {
+        already_up = true;
+        sleep(Duration::from_secs(8)).await;
+    }
+
+    if already_up {
+        println!("[info] <> ipv6 link already up");
+        dhcp6c.up();
+    }
 
     let sock = Socket::new(Domain::IPV6, Type::DGRAM, None)?;
 
