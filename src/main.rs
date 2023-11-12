@@ -117,9 +117,9 @@ async fn main() -> Result<()> {
     println!("[info] wait for pppoe");
 
     let ds_config_path = Path::new(rsdsl_ip_config::LOCATION);
-    let mut already_up = false;
+    let mut already_up = true;
     while !ds_config_path.exists() {
-        already_up = true;
+        already_up = false;
         sleep(Duration::from_secs(8)).await;
     }
 
