@@ -17,13 +17,13 @@ pub enum Dhcp6cState {
     Opened,     // Lower layer up, idle, lease valid, no renewal or rebind needed.
 }
 
-/// List of valid packet types for this implementation.
+/// List of valid packets for this implementation.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Packet {
     Solicit,
     Advertise,
     Request,
-    Reply,
+    Reply(Duration, Duration, Duration),
     Renew,
     Rebind,
 }
@@ -152,7 +152,7 @@ impl Dhcp6c {
         match packet {
             Packet::Solicit | Packet::Request | Packet::Renew | Packet::Rebind => {} // illegal
             Packet::Advertise => self.ra(),
-            Packet::Reply => self.rr(),
+            Packet::Reply(t1, t2, valid_lifetime) => self.rr(t1, t2, valid_lifetime),
         }
     }
 
@@ -309,13 +309,20 @@ impl Dhcp6c {
         }
     }
 
-    fn rr(&mut self) {
+    fn rr(&mut self, t1: Duration, t2: Duration, valid_lifetime: Duration) {
         match self.state {
             Dhcp6cState::Starting | Dhcp6cState::Opened => {} // illegal
             Dhcp6cState::Soliciting | Dhcp6cState::Requesting | Dhcp6cState::Rerouting => {
                 self.upper_status_tx
                     .send(true)
                     .expect("upper status channel is closed");
+
+                self.lease = Some(Lease {
+                    timestamp: Instant::now(),
+                    t1,
+                    t2,
+                    valid_lifetime,
+                });
 
                 self.state = Dhcp6cState::Opened;
             }

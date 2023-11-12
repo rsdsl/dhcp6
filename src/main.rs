@@ -28,7 +28,7 @@ struct Dhcp6 {
 
     xid: [u8; 3],
     server_id: Vec<u8>,
-    last_packet: Packet,
+    last_sent: Packet,
     iapd: IAPD,
 }
 
@@ -40,7 +40,7 @@ impl Dhcp6 {
 
             xid: [0; 3],
             server_id: Vec::default(),
-            last_packet: Packet::Reply, // Can never occur naturally, forces XID generation.
+            last_sent: Packet::Advertise, // Can never occur naturally, forces XID generation.
             iapd: IAPD {
                 id: 1,
                 t1: 0,
@@ -228,7 +228,11 @@ fn handle(dhcp6: &mut Dhcp6, dhcp6c: &mut Dhcp6c, buf: &[u8]) -> Result<()> {
                 aftr: aftr_name.map(|name| name.to_utf8()),
             });
 
-            dhcp6c.from_recv(Packet::Reply);
+            dhcp6c.from_recv(Packet::Reply(
+                Duration::from_secs(ia_pd.t1.into()),
+                Duration::from_secs(ia_pd.t2.into()),
+                Duration::from_secs(ia_prefix.valid_lifetime.into()),
+            ));
         }
         _ => println!("[warn] <- unimplemented message type {:?}", msg.msg_type()),
     }
@@ -237,7 +241,7 @@ fn handle(dhcp6: &mut Dhcp6, dhcp6c: &mut Dhcp6c, buf: &[u8]) -> Result<()> {
 }
 
 async fn send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> Result<()> {
-    if packet != dhcp6.last_packet {
+    if packet != dhcp6.last_sent {
         dhcp6.xid = rand::random();
     }
 
@@ -321,7 +325,7 @@ async fn send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> Resu
         _ => println!("[warn] -> can't send unsupported packet type"),
     }
 
-    dhcp6.last_packet = packet;
+    dhcp6.last_sent = packet;
 
     Ok(())
 }
