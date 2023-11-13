@@ -181,6 +181,8 @@ impl Dhcp6c {
 
     fn up_negative(&mut self) {
         if self.state == Dhcp6cState::Starting {
+            self.restart_timer.reset();
+
             self.output_tx
                 .send(Packet::Solicit)
                 .expect("output channel is closed");
@@ -280,15 +282,20 @@ impl Dhcp6c {
     fn expire(&mut self) -> Option<Packet> {
         match self.state {
             Dhcp6cState::Rebinding => {
+                self.restart_timer.reset();
+
                 self.upper_status_tx
                     .send(false)
                     .expect("upper status channel is closed");
+
                 self.state = Dhcp6cState::Soliciting;
 
                 Some(Packet::Solicit)
             }
             Dhcp6cState::Rerouting => {
+                self.restart_timer.reset();
                 self.state = Dhcp6cState::Soliciting;
+
                 Some(Packet::Solicit)
             }
             _ => None, // illegal
