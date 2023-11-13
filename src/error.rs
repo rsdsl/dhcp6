@@ -1,4 +1,4 @@
-use std::{ffi, io, net, time};
+use std::{io, net, time};
 
 use tokio::sync::watch;
 
@@ -8,35 +8,31 @@ use thiserror::Error;
 pub enum Error {
     #[error("lease has been obtained but doesn't exist")]
     LeaseNotFound,
-    #[error("no client duid")]
+    #[error("server did not include a client id option")]
     NoClientId,
-    #[error("no hexdump data")]
+    #[error("can't hexdump empty slice")]
     NoData,
-    #[error("no domain name servers")]
+    #[error("server did not include a domain name servers option")]
     NoDns,
-    #[error("no ia_pd")]
+    #[error("server did not include an ia_pd option")]
     NoIAPD,
-    #[error("no ia_pd status code")]
-    NoIAPDStatus,
-    #[error("no ia_prefix")]
+    #[error("server did not include an ia_prefix option in the ia_pd option")]
     NoIAPrefix,
-    #[error("no server duid")]
+    #[error("server did not include a server id option")]
     NoServerId,
-    #[error("incomplete transmission")]
-    PartialSend,
-    #[error("too few domain name servers (got {0}, need at least 2)")]
+    #[error("unable to send full packet (expected {0}, got {1})")]
+    PartialSend(usize, usize),
+    #[error("too few domain name servers (expected at least 2, got {0})")]
     TooFewDns(usize),
-    #[error("received packet with wrong client duid (got {0}, want {1})")]
+    #[error("received packet with wrong client duid (expected {0}, got {1})")]
     WrongClientId(String, String),
-    #[error("received packet with wrong server duid (got {0}, want {1})")]
+    #[error("received packet with wrong server duid (expected {0}, got {1})")]
     WrongServerId(String, String),
 
-    #[error("parse address: {0}")]
+    #[error("can't parse network address: {0}")]
     AddrParse(#[from] net::AddrParseError),
-    #[error("io: {0}")]
+    #[error("io error: {0}")]
     Io(#[from] io::Error),
-    #[error("nul: {0}")]
-    Nul(#[from] ffi::NulError),
     #[error("system time monotonicity error: {0}")]
     SystemTime(#[from] time::SystemTimeError),
 

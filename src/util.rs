@@ -32,7 +32,7 @@ pub async fn send_to_exact<A: ToSocketAddrs>(
 ) -> Result<()> {
     let n = sock.send_to(buf, target).await?;
     if n != buf.len() {
-        Err(Error::PartialSend)
+        Err(Error::PartialSend(buf.len(), n))
     } else {
         Ok(())
     }

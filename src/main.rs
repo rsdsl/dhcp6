@@ -231,8 +231,8 @@ fn handle(dhcp6: &mut Dhcp6, dhcp6c: &mut Dhcp6c, buf: &[u8]) -> Result<()> {
 
     if client_id != dhcp6.duid.as_ref() {
         return Err(Error::WrongClientId(
-            hexdump(client_id)?,
             hexdump(dhcp6.duid.as_ref())?,
+            hexdump(client_id)?,
         ));
     }
 
@@ -240,8 +240,8 @@ fn handle(dhcp6: &mut Dhcp6, dhcp6c: &mut Dhcp6c, buf: &[u8]) -> Result<()> {
         dhcp6.server_id = server_id.to_vec();
     } else if server_id != &dhcp6.server_id {
         return Err(Error::WrongServerId(
-            hexdump(server_id)?,
             hexdump(&dhcp6.server_id)?,
+            hexdump(server_id)?,
         ));
     }
 
