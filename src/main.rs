@@ -142,8 +142,6 @@ async fn main() -> Result<()> {
 
     let sock: UdpSocket = sock.try_into()?;
 
-    sock.bind_device(Some("ppp0".as_bytes()))?;
-
     let mut buf = [0; 1500];
     loop {
         tokio::select! {
@@ -153,10 +151,14 @@ async fn main() -> Result<()> {
                 match read_ds_config() {
                     Some(ds_config) if ds_config.v6.is_some() => {
                         println!("[info] <> ipv6 link up");
+
+                        sock.bind_device(Some("ppp0".as_bytes()))?;
                         dhcp6c.up();
                     }
                     _ => {
                         println!("[info] <> ipv6 link down");
+
+                        sock.bind_device(None)?;
                         dhcp6c.down();
                     }
                 }
