@@ -4,7 +4,6 @@ use rsdsl_dhcp6::{Error, Result};
 
 use std::fs::{self, File};
 use std::net::{IpAddr, Ipv6Addr, SocketAddr, SocketAddrV6};
-use std::path::Path;
 use std::str::FromStr;
 use std::time::SystemTime;
 
@@ -114,20 +113,6 @@ async fn main() -> Result<()> {
 
     let mut sigusr1 = signal(SignalKind::user_defined1())?;
 
-    println!("[info] wait for pppoe");
-
-    let ds_config_path = Path::new(rsdsl_ip_config::LOCATION);
-    let mut already_up = true;
-    while !ds_config_path.exists() {
-        already_up = false;
-        sleep(Duration::from_secs(8)).await;
-    }
-
-    if already_up {
-        println!("[info] <> ipv6 link already up");
-        dhcp6c.up();
-    }
-
     let sock = Socket::new(Domain::IPV6, Type::DGRAM, None)?;
 
     sock.set_only_v6(true)?;
@@ -141,6 +126,24 @@ async fn main() -> Result<()> {
     sock.set_nonblocking(true)?;
 
     let sock: UdpSocket = sock.try_into()?;
+
+    println!("[info] wait for pppoe");
+
+    let mut already_up = true;
+    while let Err(e) = sock.bind_device(Some("ppp0".as_bytes())) {
+        if e.raw_os_error() == Some(19) {
+            // "No such device" doesn't have an ErrorKind.
+            already_up = false;
+            sleep(Duration::from_secs(8)).await;
+        } else {
+            return Err(e.into());
+        }
+    }
+
+    if already_up {
+        println!("[info] <> ipv6 link already up");
+        dhcp6c.up();
+    }
 
     let mut buf = [0; 1500];
     loop {
