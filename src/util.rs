@@ -48,12 +48,12 @@ pub fn inform() {
     }
 }
 
-pub fn hexdump<A: AsRef<[u8]>>(data: A) -> Result<String> {
+pub fn hexdump<A: AsRef<[u8]>>(data: A) -> String {
     data.as_ref()
         .iter()
         .map(|byte| format!("{:02x}", byte))
         .reduce(|acc, ch| acc + &ch)
-        .ok_or(Error::NoData)
+        .unwrap_or(String::new())
 }
 
 pub fn sys_to_instant(sys: SystemTime) -> Result<Instant> {

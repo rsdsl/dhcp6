@@ -10,8 +10,6 @@ pub enum Error {
     LeaseNotFound,
     #[error("server did not include a client id option")]
     NoClientId,
-    #[error("can't hexdump empty slice")]
-    NoData,
     #[error("server did not include a domain name servers option")]
     NoDns,
     #[error("server did not include an ia_pd option")]
