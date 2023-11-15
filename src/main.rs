@@ -18,6 +18,7 @@ use socket2::{Domain, Socket, Type};
 use trust_dns_proto::serialize::binary::BinDecodable;
 
 const DUID_LOCATION: &str = "/data/dhcp6.duid";
+const INTERFACE: &str = "ppp0";
 
 const ALL_DHCPV6_SERVERS: SocketAddrV6 =
     SocketAddrV6::new(Ipv6Addr::new(0xff02, 0, 0, 0, 0, 0, 1, 2), 547, 0, 0);
@@ -130,7 +131,7 @@ async fn main() -> Result<()> {
     println!("[info] wait for pppoe");
 
     let mut already_up = true;
-    while let Err(e) = sock.bind_device(Some("ppp0".as_bytes())) {
+    while let Err(e) = sock.bind_device(Some(INTERFACE.as_bytes())) {
         if e.raw_os_error() == Some(19) {
             // "No such device" doesn't have an ErrorKind.
             already_up = false;
@@ -155,7 +156,7 @@ async fn main() -> Result<()> {
                     Some(ds_config) if ds_config.v6.is_some() => {
                         println!("[info] <> ipv6 link up");
 
-                        sock.bind_device(Some("ppp0".as_bytes()))?;
+                        sock.bind_device(Some(INTERFACE.as_bytes()))?;
                         dhcp6c.up();
                     }
                     _ => {
