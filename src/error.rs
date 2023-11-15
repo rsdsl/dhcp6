@@ -37,11 +37,11 @@ pub enum Error {
     #[error("can't receive from tokio watch channel: {0}")]
     WatchRecv(#[from] watch::error::RecvError),
 
-    #[error("dhcproto decode: {0}")]
+    #[error("dhcproto decode error: {0}")]
     DhcprotoDecode(#[from] dhcproto::error::DecodeError),
-    #[error("dhcproto encode: {0}")]
+    #[error("dhcproto encode error: {0}")]
     DhcprotoEncode(#[from] dhcproto::error::EncodeError),
-    #[error("serde_json: {0}")]
+    #[error("serde_json error: {0}")]
     SerdeJson(#[from] serde_json::Error),
 }
 
