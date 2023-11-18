@@ -9,7 +9,7 @@ use std::time::SystemTime;
 
 use tokio::net::UdpSocket;
 use tokio::signal::unix::{signal, SignalKind};
-use tokio::time::{sleep, Duration};
+use tokio::time::{sleep, Duration, Instant};
 
 use dhcproto::v6::{duid::Duid, DhcpOption, IAPrefix, Message, MessageType, OptionCode, IAPD, ORO};
 use dhcproto::{Decodable, Decoder, Encodable, Encoder, Name};
@@ -113,6 +113,7 @@ async fn main() -> Result<()> {
     let mut dhcp6c_rx = dhcp6c.opened();
 
     let mut sigusr1 = signal(SignalKind::user_defined1())?;
+    let mut sigusr2 = signal(SignalKind::user_defined2())?;
 
     let sock = Socket::new(Domain::IPV6, Type::DGRAM, None)?;
 
@@ -164,6 +165,18 @@ async fn main() -> Result<()> {
 
                         sock.bind_device(None)?;
                         dhcp6c.down();
+                    }
+                }
+            },
+            _ = sigusr2.recv() => {
+                if let Some(lease) = dhcp6c.lease() {
+                    if let Some(pd_config) = dhcp6.lease.as_mut() {
+                        pd_config.timestamp = SystemTime::now() - Instant::now().duration_since(lease.timestamp);
+
+                        let mut file = File::create(rsdsl_pd_config::LOCATION)?;
+                        serde_json::to_writer_pretty(&mut file, &pd_config)?;
+
+                        println!("[info] <> update acquiration timestamp (ntp)");
                     }
                 }
             },

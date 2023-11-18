@@ -221,6 +221,12 @@ impl Dhcp6c {
         self.upper_status_rx.clone()
     }
 
+    /// Returns a reference to the current internal lease if there is one,
+    /// or `None` otherwise.
+    pub fn lease(&self) -> Option<&Lease> {
+        self.lease.as_ref()
+    }
+
     fn timeout_positive(&mut self) -> Option<Packet> {
         match self.state {
             Dhcp6cState::Starting | Dhcp6cState::Opened => None, // illegal
