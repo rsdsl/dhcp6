@@ -325,7 +325,11 @@ impl Dhcp6c {
     fn rr(&mut self, t1: Duration, t2: Duration, valid_lifetime: Duration) {
         match self.state {
             Dhcp6cState::Starting | Dhcp6cState::Opened => {} // illegal
-            Dhcp6cState::Soliciting | Dhcp6cState::Requesting | Dhcp6cState::Rerouting => {
+            Dhcp6cState::Soliciting
+            | Dhcp6cState::Requesting
+            | Dhcp6cState::Renewing
+            | Dhcp6cState::Rebinding
+            | Dhcp6cState::Rerouting => {
                 self.upper_status_tx
                     .send(true)
                     .expect("upper status channel is closed");
@@ -339,7 +343,6 @@ impl Dhcp6c {
 
                 self.state = Dhcp6cState::Opened;
             }
-            Dhcp6cState::Renewing | Dhcp6cState::Rebinding => self.state = Dhcp6cState::Opened,
         }
     }
 }
