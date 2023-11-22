@@ -355,7 +355,12 @@ async fn do_send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> R
             opts.insert(DhcpOption::ClientId(dhcp6.duid.as_ref().to_vec()));
             opts.insert(DhcpOption::RapidCommit);
             opts.insert(DhcpOption::ORO(ORO {
-                opts: vec![OptionCode::AftrName, OptionCode::DomainNameServers],
+                opts: vec![
+                    OptionCode::SolMaxRt,
+                    OptionCode::InfMaxRt,
+                    OptionCode::AftrName,
+                    OptionCode::DomainNameServers,
+                ],
             }));
             opts.insert(DhcpOption::IAPD(IAPD {
                 id: 1,
@@ -395,7 +400,12 @@ async fn do_send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> R
             opts.insert(DhcpOption::ClientId(dhcp6.duid.as_ref().to_vec()));
             opts.insert(DhcpOption::ServerId(dhcp6.server_id.clone()));
             opts.insert(DhcpOption::ORO(ORO {
-                opts: vec![OptionCode::AftrName, OptionCode::DomainNameServers],
+                opts: vec![
+                    OptionCode::SolMaxRt,
+                    OptionCode::InfMaxRt,
+                    OptionCode::AftrName,
+                    OptionCode::DomainNameServers,
+                ],
             }));
             opts.insert(DhcpOption::IAPD(IAPD {
                 id: 1,
@@ -435,7 +445,12 @@ async fn do_send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> R
             opts.insert(DhcpOption::ClientId(dhcp6.duid.as_ref().to_vec()));
             opts.insert(DhcpOption::ServerId(dhcp6.server_id.clone()));
             opts.insert(DhcpOption::ORO(ORO {
-                opts: vec![OptionCode::AftrName, OptionCode::DomainNameServers],
+                opts: vec![
+                    OptionCode::SolMaxRt,
+                    OptionCode::InfMaxRt,
+                    OptionCode::AftrName,
+                    OptionCode::DomainNameServers,
+                ],
             }));
             opts.insert(DhcpOption::IAPD(IAPD {
                 id: 1,
@@ -474,7 +489,12 @@ async fn do_send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> R
 
             opts.insert(DhcpOption::ClientId(dhcp6.duid.as_ref().to_vec()));
             opts.insert(DhcpOption::ORO(ORO {
-                opts: vec![OptionCode::AftrName, OptionCode::DomainNameServers],
+                opts: vec![
+                    OptionCode::SolMaxRt,
+                    OptionCode::InfMaxRt,
+                    OptionCode::AftrName,
+                    OptionCode::DomainNameServers,
+                ],
             }));
             opts.insert(DhcpOption::IAPD(IAPD {
                 id: 1,
