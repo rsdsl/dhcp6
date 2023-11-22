@@ -371,8 +371,6 @@ impl Dhcp6c {
                     lease.t2 = lease.valid_lifetime / 2;
                 }
 
-                // TODO: lft = 0
-
                 if no_binding {
                     self.restart_timer.reset();
                     self.restart_counter = self.max_request;
@@ -383,6 +381,13 @@ impl Dhcp6c {
                     self.restart_counter -= 1;
 
                     self.state = Dhcp6cState::Requesting;
+                } else if lease.valid_lifetime.as_secs() == 0 {
+                    self.restart_timer.reset();
+
+                    self.output_tx
+                        .send(Packet::Solicit)
+                        .expect("output channel is closed");
+                    self.state = Dhcp6cState::Soliciting;
                 } else {
                     self.upper_status_tx
                         .send(true)
