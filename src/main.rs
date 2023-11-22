@@ -326,9 +326,13 @@ fn handle(dhcp6: &mut Dhcp6, dhcp6c: &mut Dhcp6c, buf: &[u8]) -> Result<()> {
             });
 
             dhcp6c.from_recv(Packet::Reply(
-                Duration::from_secs(ia_pd.t1.into()),
-                Duration::from_secs(ia_pd.t2.into()),
-                Duration::from_secs(ia_prefix.valid_lifetime.into()),
+                Lease {
+                    timestamp: Instant::now(),
+                    t1: Duration::from_secs(ia_pd.t1.into()),
+                    t2: Duration::from_secs(ia_pd.t2.into()),
+                    valid_lifetime: Duration::from_secs(ia_prefix.valid_lifetime.into()),
+                },
+                false,
             ));
         }
         _ => println!("[warn] <- unimplemented message type {:?}", msg.msg_type()),

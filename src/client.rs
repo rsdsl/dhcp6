@@ -23,7 +23,7 @@ pub enum Packet {
     Solicit,
     Advertise,
     Request,
-    Reply(Duration, Duration, Duration),
+    Reply(Lease, bool),
     Renew,
     Rebind,
 }
@@ -152,7 +152,7 @@ impl Dhcp6c {
         match packet {
             Packet::Solicit | Packet::Request | Packet::Renew | Packet::Rebind => {} // illegal
             Packet::Advertise => self.ra(),
-            Packet::Reply(t1, t2, valid_lifetime) => self.rr(t1, t2, valid_lifetime),
+            Packet::Reply(lease, no_binding) => self.rr(lease, no_binding),
         }
     }
 
@@ -337,7 +337,7 @@ impl Dhcp6c {
         }
     }
 
-    fn rr(&mut self, t1: Duration, t2: Duration, valid_lifetime: Duration) {
+    fn rr(&mut self, lease: Lease, no_binding: bool) {
         match self.state {
             Dhcp6cState::Starting | Dhcp6cState::Opened => {} // illegal
             Dhcp6cState::Soliciting
@@ -349,13 +349,11 @@ impl Dhcp6c {
                     .send(true)
                     .expect("upper status channel is closed");
 
-                self.lease = Some(Lease {
-                    timestamp: Instant::now(),
-                    t1,
-                    t2,
-                    valid_lifetime,
-                });
+                // TODO: t1, t2 = 0 or inf
+                // TODO: req if status nobinding
+                // TODO: lft = 0
 
+                self.lease = Some(lease);
                 self.state = Dhcp6cState::Opened;
             }
         }
