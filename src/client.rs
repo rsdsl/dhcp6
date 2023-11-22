@@ -1,6 +1,8 @@
 //! Minimal DHCPv6 client implementation with Rapid Commit support
 //! and auto-rebinding after link disruption.
 
+use std::future;
+
 use tokio::sync::{mpsc, watch};
 use tokio::time::{Duration, Instant, Interval};
 
@@ -43,31 +45,47 @@ impl Lease {
         !self.has_expired()
             && !self.needs_rebind()
             && Instant::now().duration_since(self.timestamp) > self.t1
+            && self.t1.as_secs() < u32::MAX.into()
     }
 
     /// Reports whether a rebind is needed.
     pub fn needs_rebind(&self) -> bool {
-        !self.has_expired() && Instant::now().duration_since(self.timestamp) > self.t2
+        !self.has_expired()
+            && Instant::now().duration_since(self.timestamp) > self.t2
+            && self.t2.as_secs() < u32::MAX.into()
     }
 
     /// Reports whether the lease has expired.
     pub fn has_expired(&self) -> bool {
         Instant::now().duration_since(self.timestamp) > self.valid_lifetime
+            && self.valid_lifetime.as_secs() < u32::MAX.into()
     }
 
     /// Waits until a renewal is needed.
     pub async fn wait_renew(&self) {
-        tokio::time::sleep_until(self.timestamp + self.t1).await
+        if self.t1.as_secs() < u32::MAX.into() {
+            tokio::time::sleep_until(self.timestamp + self.t1).await
+        } else {
+            future::pending().await
+        }
     }
 
     /// Waits until a rebind is needed.
     pub async fn wait_rebind(&self) {
-        tokio::time::sleep_until(self.timestamp + self.t2).await
+        if self.t2.as_secs() < u32::MAX.into() {
+            tokio::time::sleep_until(self.timestamp + self.t2).await
+        } else {
+            future::pending().await
+        }
     }
 
     /// Waits until the lease expires.
     pub async fn wait_expire(&self) {
-        tokio::time::sleep_until(self.timestamp + self.valid_lifetime).await
+        if self.valid_lifetime.as_secs() < u32::MAX.into() {
+            tokio::time::sleep_until(self.timestamp + self.valid_lifetime).await
+        } else {
+            future::pending().await
+        }
     }
 }
 
@@ -337,7 +355,7 @@ impl Dhcp6c {
         }
     }
 
-    fn rr(&mut self, lease: Lease, no_binding: bool) {
+    fn rr(&mut self, mut lease: Lease, no_binding: bool) {
         match self.state {
             Dhcp6cState::Starting | Dhcp6cState::Opened => {} // illegal
             Dhcp6cState::Soliciting
@@ -349,7 +367,14 @@ impl Dhcp6c {
                     .send(true)
                     .expect("upper status channel is closed");
 
-                // TODO: t1, t2 = 0 or inf
+                if lease.t1.as_secs() == 0 {
+                    lease.t1 = lease.valid_lifetime / 4;
+                }
+
+                if lease.t2.as_secs() == 0 {
+                    lease.t2 = lease.valid_lifetime / 2;
+                }
+
                 // TODO: req if status nobinding
                 // TODO: lft = 0
 
