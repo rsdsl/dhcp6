@@ -380,6 +380,15 @@ async fn do_send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> R
             println!("[info] -> solicit");
         }
         Packet::Request => {
+            let DhcpOption::IAPrefix(ia_prefix) = dhcp6
+                .iapd
+                .opts
+                .get(OptionCode::IAPrefix)
+                .ok_or(Error::NoIAPrefix)?
+            else {
+                unreachable!()
+            };
+
             let mut request = Message::new_with_id(MessageType::Request, dhcp6.xid);
             let opts = request.opts_mut();
 
@@ -395,26 +404,8 @@ async fn do_send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> R
                 opts: vec![DhcpOption::IAPrefix(IAPrefix {
                     preferred_lifetime: 0,
                     valid_lifetime: 0,
-                    prefix_len: if let DhcpOption::IAPrefix(ia_prefix) = dhcp6
-                        .iapd
-                        .opts
-                        .get(OptionCode::IAPrefix)
-                        .ok_or(Error::NoIAPrefix)?
-                    {
-                        ia_prefix.prefix_len
-                    } else {
-                        unreachable!()
-                    },
-                    prefix_ip: if let DhcpOption::IAPrefix(ia_prefix) = dhcp6
-                        .iapd
-                        .opts
-                        .get(OptionCode::IAPrefix)
-                        .ok_or(Error::NoIAPrefix)?
-                    {
-                        ia_prefix.prefix_ip
-                    } else {
-                        unreachable!()
-                    },
+                    prefix_len: ia_prefix.prefix_len,
+                    prefix_ip: ia_prefix.prefix_ip,
                     opts: Default::default(),
                 })]
                 .into_iter()
@@ -429,6 +420,15 @@ async fn do_send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> R
             println!("[info] -> request");
         }
         Packet::Renew => {
+            let DhcpOption::IAPrefix(ia_prefix) = dhcp6
+                .iapd
+                .opts
+                .get(OptionCode::IAPrefix)
+                .ok_or(Error::NoIAPrefix)?
+            else {
+                unreachable!()
+            };
+
             let mut renew = Message::new_with_id(MessageType::Renew, dhcp6.xid);
             let opts = renew.opts_mut();
 
@@ -444,26 +444,8 @@ async fn do_send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> R
                 opts: vec![DhcpOption::IAPrefix(IAPrefix {
                     preferred_lifetime: 0,
                     valid_lifetime: 0,
-                    prefix_len: if let DhcpOption::IAPrefix(ia_prefix) = dhcp6
-                        .iapd
-                        .opts
-                        .get(OptionCode::IAPrefix)
-                        .ok_or(Error::NoIAPrefix)?
-                    {
-                        ia_prefix.prefix_len
-                    } else {
-                        unreachable!()
-                    },
-                    prefix_ip: if let DhcpOption::IAPrefix(ia_prefix) = dhcp6
-                        .iapd
-                        .opts
-                        .get(OptionCode::IAPrefix)
-                        .ok_or(Error::NoIAPrefix)?
-                    {
-                        ia_prefix.prefix_ip
-                    } else {
-                        unreachable!()
-                    },
+                    prefix_len: ia_prefix.prefix_len,
+                    prefix_ip: ia_prefix.prefix_ip,
                     opts: Default::default(),
                 })]
                 .into_iter()
@@ -478,6 +460,15 @@ async fn do_send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> R
             println!("[info] -> renew");
         }
         Packet::Rebind => {
+            let DhcpOption::IAPrefix(ia_prefix) = dhcp6
+                .iapd
+                .opts
+                .get(OptionCode::IAPrefix)
+                .ok_or(Error::NoIAPrefix)?
+            else {
+                unreachable!()
+            };
+
             let mut rebind = Message::new_with_id(MessageType::Rebind, dhcp6.xid);
             let opts = rebind.opts_mut();
 
@@ -492,26 +483,8 @@ async fn do_send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> R
                 opts: vec![DhcpOption::IAPrefix(IAPrefix {
                     preferred_lifetime: 0,
                     valid_lifetime: 0,
-                    prefix_len: if let DhcpOption::IAPrefix(ia_prefix) = dhcp6
-                        .iapd
-                        .opts
-                        .get(OptionCode::IAPrefix)
-                        .ok_or(Error::NoIAPrefix)?
-                    {
-                        ia_prefix.prefix_len
-                    } else {
-                        unreachable!()
-                    },
-                    prefix_ip: if let DhcpOption::IAPrefix(ia_prefix) = dhcp6
-                        .iapd
-                        .opts
-                        .get(OptionCode::IAPrefix)
-                        .ok_or(Error::NoIAPrefix)?
-                    {
-                        ia_prefix.prefix_ip
-                    } else {
-                        unreachable!()
-                    },
+                    prefix_len: ia_prefix.prefix_len,
+                    prefix_ip: ia_prefix.prefix_ip,
                     opts: Default::default(),
                 })]
                 .into_iter()
