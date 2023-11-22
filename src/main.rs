@@ -361,7 +361,15 @@ async fn do_send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> R
                 id: 1,
                 t1: 0,
                 t2: 0,
-                opts: Default::default(),
+                opts: vec![DhcpOption::IAPrefix(IAPrefix {
+                    preferred_lifetime: 0,
+                    valid_lifetime: 0,
+                    prefix_len: 56,
+                    prefix_ip: Ipv6Addr::UNSPECIFIED,
+                    opts: Default::default(),
+                })]
+                .into_iter()
+                .collect(),
             }));
 
             let mut buf = Vec::new();
