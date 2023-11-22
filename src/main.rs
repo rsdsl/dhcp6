@@ -255,7 +255,7 @@ fn handle(dhcp6: &mut Dhcp6, dhcp6c: &mut Dhcp6c, buf: &[u8]) -> Result<()> {
         ));
     }
 
-    if dhcp6c.is_soliciting() {
+    if dhcp6c.accept_new_server_id() {
         dhcp6.server_id = server_id.to_vec();
     } else if server_id != &dhcp6.server_id {
         return Err(Error::WrongServerId(

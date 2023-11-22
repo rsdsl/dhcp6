@@ -214,6 +214,21 @@ impl Dhcp6c {
         self.state == Dhcp6cState::Soliciting
     }
 
+    /// Reports whether the `Dhcp6c` is in the `Rebinding` state.
+    pub fn is_rebinding(&self) -> bool {
+        self.state == Dhcp6cState::Rebinding
+    }
+
+    /// Reports whether the `Dhcp6c` is in the `Rerouting` state.
+    pub fn is_rerouting(&self) -> bool {
+        self.state == Dhcp6cState::Rerouting
+    }
+
+    /// Reports whether the `Dhcp6c` is in a state that accepts new server IDs.
+    pub fn accept_new_server_id(&self) -> bool {
+        self.is_soliciting() || self.is_rebinding() || self.is_rerouting()
+    }
+
     /// Returns a watch channel receiver that can be used to monitor whether
     /// the `Dhcp6c` has a valid and routed prefix.
     /// This is equivalent to the `Renewing`, `Rebinding` and `Opened` states.
