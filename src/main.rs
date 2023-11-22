@@ -354,14 +354,14 @@ async fn do_send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> R
 
             opts.insert(DhcpOption::ClientId(dhcp6.duid.as_ref().to_vec()));
             opts.insert(DhcpOption::RapidCommit);
+            opts.insert(DhcpOption::ORO(ORO {
+                opts: vec![OptionCode::AftrName, OptionCode::DomainNameServers],
+            }));
             opts.insert(DhcpOption::IAPD(IAPD {
                 id: 1,
                 t1: 0,
                 t2: 0,
                 opts: Default::default(),
-            }));
-            opts.insert(DhcpOption::ORO(ORO {
-                opts: vec![OptionCode::AftrName, OptionCode::DomainNameServers],
             }));
 
             let mut buf = Vec::new();
@@ -377,6 +377,9 @@ async fn do_send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> R
 
             opts.insert(DhcpOption::ClientId(dhcp6.duid.as_ref().to_vec()));
             opts.insert(DhcpOption::ServerId(dhcp6.server_id.clone()));
+            opts.insert(DhcpOption::ORO(ORO {
+                opts: vec![OptionCode::AftrName, OptionCode::DomainNameServers],
+            }));
             opts.insert(DhcpOption::IAPD(IAPD {
                 id: 1,
                 t1: 0,
@@ -408,9 +411,6 @@ async fn do_send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> R
                 })]
                 .into_iter()
                 .collect(),
-            }));
-            opts.insert(DhcpOption::ORO(ORO {
-                opts: vec![OptionCode::AftrName, OptionCode::DomainNameServers],
             }));
 
             let mut buf = Vec::new();
@@ -426,6 +426,9 @@ async fn do_send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> R
 
             opts.insert(DhcpOption::ClientId(dhcp6.duid.as_ref().to_vec()));
             opts.insert(DhcpOption::ServerId(dhcp6.server_id.clone()));
+            opts.insert(DhcpOption::ORO(ORO {
+                opts: vec![OptionCode::AftrName, OptionCode::DomainNameServers],
+            }));
             opts.insert(DhcpOption::IAPD(IAPD {
                 id: 1,
                 t1: 0,
@@ -457,9 +460,6 @@ async fn do_send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> R
                 })]
                 .into_iter()
                 .collect(),
-            }));
-            opts.insert(DhcpOption::ORO(ORO {
-                opts: vec![OptionCode::AftrName, OptionCode::DomainNameServers],
             }));
 
             let mut buf = Vec::new();
@@ -474,6 +474,9 @@ async fn do_send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> R
             let opts = rebind.opts_mut();
 
             opts.insert(DhcpOption::ClientId(dhcp6.duid.as_ref().to_vec()));
+            opts.insert(DhcpOption::ORO(ORO {
+                opts: vec![OptionCode::AftrName, OptionCode::DomainNameServers],
+            }));
             opts.insert(DhcpOption::IAPD(IAPD {
                 id: 1,
                 t1: 0,
@@ -505,9 +508,6 @@ async fn do_send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> R
                 })]
                 .into_iter()
                 .collect(),
-            }));
-            opts.insert(DhcpOption::ORO(ORO {
-                opts: vec![OptionCode::AftrName, OptionCode::DomainNameServers],
             }));
 
             let mut buf = Vec::new();
