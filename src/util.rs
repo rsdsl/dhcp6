@@ -11,7 +11,7 @@ use rsdsl_pd_config::PdConfig;
 use sysinfo::{ProcessExt, Signal, System, SystemExt};
 
 pub fn expired(lease: &PdConfig) -> bool {
-    let expiry = lease.timestamp + Duration::from_secs(lease.preflft.into());
+    let expiry = lease.timestamp + Duration::from_secs(lease.validlft.into());
     SystemTime::now() >= expiry
 }
 
