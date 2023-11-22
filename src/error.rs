@@ -1,4 +1,4 @@
-use std::{io, net, time};
+use std::{io, net, num, time};
 
 use tokio::sync::watch;
 
@@ -33,6 +33,8 @@ pub enum Error {
     Io(#[from] io::Error),
     #[error("system time monotonicity error: {0}")]
     SystemTime(#[from] time::SystemTimeError),
+    #[error("can't convert between integer sizes: {0}")]
+    TryFromInt(#[from] num::TryFromIntError),
 
     #[error("can't receive from tokio watch channel: {0}")]
     WatchRecv(#[from] watch::error::RecvError),

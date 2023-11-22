@@ -29,6 +29,7 @@ struct Dhcp6 {
     lease: Option<PdConfig>,
 
     xid: [u8; 3],
+    xts: Instant, // Transaction timestamp.
     server_id: Vec<u8>,
     last_sent: Packet,
     iapd: IAPD,
@@ -43,6 +44,7 @@ impl Dhcp6 {
             lease: lease.clone(),
 
             xid: [0; 3],
+            xts: Instant::now(),
             server_id: lease
                 .clone()
                 .map(|lease| lease.server_id)
@@ -345,7 +347,13 @@ async fn send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) {
 async fn do_send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> Result<()> {
     if packet != dhcp6.last_sent {
         dhcp6.xid = rand::random();
+        dhcp6.xts = Instant::now();
     }
+
+    let elapsed = Instant::now()
+        .duration_since(dhcp6.xts)
+        .as_millis()
+        .try_into()?;
 
     match packet {
         Packet::Solicit => {
@@ -362,6 +370,7 @@ async fn do_send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> R
                     OptionCode::DomainNameServers,
                 ],
             }));
+            opts.insert(DhcpOption::ElapsedTime(elapsed));
             opts.insert(DhcpOption::IAPD(IAPD {
                 id: 1,
                 t1: 0,
@@ -407,6 +416,7 @@ async fn do_send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> R
                     OptionCode::DomainNameServers,
                 ],
             }));
+            opts.insert(DhcpOption::ElapsedTime(elapsed));
             opts.insert(DhcpOption::IAPD(IAPD {
                 id: 1,
                 t1: 0,
@@ -452,6 +462,7 @@ async fn do_send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> R
                     OptionCode::DomainNameServers,
                 ],
             }));
+            opts.insert(DhcpOption::ElapsedTime(elapsed));
             opts.insert(DhcpOption::IAPD(IAPD {
                 id: 1,
                 t1: 0,
@@ -496,6 +507,7 @@ async fn do_send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> R
                     OptionCode::DomainNameServers,
                 ],
             }));
+            opts.insert(DhcpOption::ElapsedTime(elapsed));
             opts.insert(DhcpOption::IAPD(IAPD {
                 id: 1,
                 t1: 0,
