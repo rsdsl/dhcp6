@@ -11,7 +11,10 @@ use tokio::net::UdpSocket;
 use tokio::signal::unix::{signal, SignalKind};
 use tokio::time::{sleep, Duration, Instant};
 
-use dhcproto::v6::{duid::Duid, DhcpOption, IAPrefix, Message, MessageType, OptionCode, IAPD, ORO};
+use dhcproto::v6::{
+    duid::Duid, DhcpOption, IAPrefix, Message, MessageType, OptionCode, Status, StatusCode, IAPD,
+    ORO,
+};
 use dhcproto::{Decodable, Decoder, Encodable, Encoder, Name};
 use rsdsl_pd_config::PdConfig;
 use socket2::{Domain, Socket, Type};
@@ -308,6 +311,67 @@ fn handle(dhcp6: &mut Dhcp6, dhcp6c: &mut Dhcp6c, buf: &[u8]) -> Result<()> {
                 return Err(Error::TooFewDns(dnss.len()));
             }
 
+            let DhcpOption::StatusCode(status) = opts
+                .get(OptionCode::StatusCode)
+                .cloned()
+                .unwrap_or(DhcpOption::StatusCode(StatusCode {
+                    status: Status::Success,
+                    msg: String::from("success"),
+                }))
+            else {
+                unreachable!()
+            };
+
+            let DhcpOption::StatusCode(status_ia_pd) = ia_pd
+                .opts
+                .get(OptionCode::StatusCode)
+                .cloned()
+                .unwrap_or(DhcpOption::StatusCode(StatusCode {
+                    status: Status::Success,
+                    msg: String::from("success"),
+                }))
+            else {
+                unreachable!()
+            };
+
+            let DhcpOption::StatusCode(status_ia_prefix) = ia_prefix
+                .opts
+                .get(OptionCode::StatusCode)
+                .cloned()
+                .unwrap_or(DhcpOption::StatusCode(StatusCode {
+                    status: Status::Success,
+                    msg: String::from("success"),
+                }))
+            else {
+                unreachable!()
+            };
+
+            let fail = status.status != Status::Success
+                || status_ia_pd.status != Status::Success
+                || status_ia_prefix.status != Status::Success;
+
+            if status.status != Status::Success {
+                println!("[warn] <- reply status {:?}: {}", status.status, status.msg);
+            }
+
+            if status_ia_pd.status != Status::Success {
+                println!(
+                    "[warn] <- reply ia_pd status {:?}: {}",
+                    status_ia_pd.status, status_ia_pd.msg
+                );
+            }
+
+            if status_ia_prefix.status != Status::Success {
+                println!(
+                    "[warn] <- reply ia_prefix status {:?}: {}",
+                    status_ia_prefix.status, status_ia_prefix.msg
+                );
+            }
+
+            if fail {
+                return Ok(());
+            }
+
             dhcp6.iapd = ia_pd.clone();
 
             dhcp6.lease = Some(PdConfig {
@@ -332,7 +396,9 @@ fn handle(dhcp6: &mut Dhcp6, dhcp6c: &mut Dhcp6c, buf: &[u8]) -> Result<()> {
                     t2: Duration::from_secs(ia_pd.t2.into()),
                     valid_lifetime: Duration::from_secs(ia_prefix.valid_lifetime.into()),
                 },
-                false,
+                status.status == Status::NoBinding
+                    || status_ia_pd.status == Status::NoBinding
+                    || status_ia_prefix.status == Status::NoBinding,
             ));
         }
         _ => println!("[warn] <- unimplemented message type {:?}", msg.msg_type()),
