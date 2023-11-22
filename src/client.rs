@@ -363,10 +363,6 @@ impl Dhcp6c {
             | Dhcp6cState::Renewing
             | Dhcp6cState::Rebinding
             | Dhcp6cState::Rerouting => {
-                self.upper_status_tx
-                    .send(true)
-                    .expect("upper status channel is closed");
-
                 if lease.t1.as_secs() == 0 {
                     lease.t1 = lease.valid_lifetime / 4;
                 }
@@ -375,11 +371,26 @@ impl Dhcp6c {
                     lease.t2 = lease.valid_lifetime / 2;
                 }
 
-                // TODO: req if status nobinding
                 // TODO: lft = 0
 
-                self.lease = Some(lease);
-                self.state = Dhcp6cState::Opened;
+                if no_binding {
+                    self.restart_timer.reset();
+                    self.restart_counter = self.max_request;
+
+                    self.output_tx
+                        .send(Packet::Request)
+                        .expect("output channel is closed");
+                    self.restart_counter -= 1;
+
+                    self.state = Dhcp6cState::Requesting;
+                } else {
+                    self.upper_status_tx
+                        .send(true)
+                        .expect("upper status channel is closed");
+
+                    self.lease = Some(lease);
+                    self.state = Dhcp6cState::Opened;
+                }
             }
         }
     }
