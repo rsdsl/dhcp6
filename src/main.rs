@@ -427,6 +427,9 @@ async fn do_send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> R
 
     match packet {
         Packet::Solicit => {
+            let prefix_len_hint = dhcp6.lease.as_ref().map(|pd_config| pd_config.len);
+            let prefix_hint = dhcp6.lease.as_ref().map(|pd_config| pd_config.prefix);
+
             let mut solicit = Message::new_with_id(MessageType::Solicit, dhcp6.xid);
             let opts = solicit.opts_mut();
 
@@ -448,8 +451,8 @@ async fn do_send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> R
                 opts: vec![DhcpOption::IAPrefix(IAPrefix {
                     preferred_lifetime: 0,
                     valid_lifetime: 0,
-                    prefix_len: 56,
-                    prefix_ip: Ipv6Addr::UNSPECIFIED,
+                    prefix_len: prefix_len_hint.unwrap_or(56),
+                    prefix_ip: prefix_hint.unwrap_or(Ipv6Addr::UNSPECIFIED),
                     opts: Default::default(),
                 })]
                 .into_iter()
@@ -461,7 +464,12 @@ async fn do_send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> R
 
             send_to_exact(sock, &buf, ALL_DHCPV6_SERVERS).await?;
 
-            println!("[info] -> solicit");
+            println!(
+                "[info] -> solicit hint {:?}",
+                prefix_hint
+                    .zip(prefix_len_hint)
+                    .map(|hint| format!("{}/{}", hint.0, hint.1))
+            );
         }
         Packet::Request => {
             let DhcpOption::IAPrefix(ia_prefix) = dhcp6
