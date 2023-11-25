@@ -423,7 +423,8 @@ async fn do_send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> R
     let elapsed = Instant::now()
         .duration_since(dhcp6.xts)
         .as_millis()
-        .try_into()?;
+        .try_into()
+        .unwrap_or(u16::MAX);
 
     match packet {
         Packet::Solicit => {
