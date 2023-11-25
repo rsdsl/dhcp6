@@ -186,7 +186,7 @@ async fn main() -> Result<()> {
                 }
             },
 
-            packet = dhcp6c.to_send() => send_dhcp6(&mut dhcp6, &sock, packet).await,
+            packet = dhcp6c.to_send() => send_dhcp6(&mut dhcp6, &sock, packet.0, packet.1).await,
 
             result = dhcp6c_rx.changed() => {
                 result?;
@@ -407,15 +407,20 @@ fn handle(dhcp6: &mut Dhcp6, dhcp6c: &mut Dhcp6c, buf: &[u8]) -> Result<()> {
     Ok(())
 }
 
-async fn send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) {
-    match do_send_dhcp6(dhcp6, sock, packet).await {
+async fn send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet, re_tx: bool) {
+    match do_send_dhcp6(dhcp6, sock, packet, re_tx).await {
         Ok(_) => {}
         Err(e) => println!("[warn] -> send error: {}", e),
     }
 }
 
-async fn do_send_dhcp6(dhcp6: &mut Dhcp6, sock: &UdpSocket, packet: Packet) -> Result<()> {
-    if packet != dhcp6.last_sent {
+async fn do_send_dhcp6(
+    dhcp6: &mut Dhcp6,
+    sock: &UdpSocket,
+    packet: Packet,
+    re_tx: bool,
+) -> Result<()> {
+    if !re_tx {
         dhcp6.xid = rand::random();
         dhcp6.xts = Instant::now();
     }

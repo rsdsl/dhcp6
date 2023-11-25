@@ -147,19 +147,20 @@ impl Dhcp6c {
         }
     }
 
-    /// Waits for and returns the next packet to send.
-    pub async fn to_send(&mut self) -> Packet {
+    /// Waits for and returns the next packet to send
+    /// and a boolean indicating whether it is a retransmission.
+    pub async fn to_send(&mut self) -> (Packet, bool) {
         loop {
             tokio::select! {
-                packet = self.output_rx.recv() => return packet.expect("output channel is closed"),
+                packet = self.output_rx.recv() => return (packet.expect("output channel is closed"), false),
                 _ = self.restart_timer.tick() => if self.restart_counter > 0 { // TO+ event
-                    if let Some(packet) = self.timeout_positive() { return packet; }
+                    if let Some(packet) = self.timeout_positive() { return (packet, true); }
                 } else { // TO- event
-                    if let Some(packet) = self.timeout_negative() { return packet; }
+                    if let Some(packet) = self.timeout_negative() { return (packet, true); }
                 },
-                Some(_) = option_wait_renew(self.lease.as_ref()) => if let Some(packet) = self.t1() { return packet; },
-                Some(_) = option_wait_rebind(self.lease.as_ref()) => if let Some(packet) = self.t2() { return packet; },
-                Some(_) = option_wait_expire(self.lease.as_ref()) => if let Some(packet) = self.expire() { return packet; },
+                Some(_) = option_wait_renew(self.lease.as_ref()) => if let Some(packet) = self.t1() { return (packet, false); },
+                Some(_) = option_wait_rebind(self.lease.as_ref()) => if let Some(packet) = self.t2() { return (packet, false); },
+                Some(_) = option_wait_expire(self.lease.as_ref()) => if let Some(packet) = self.expire() { return (packet, false); },
             }
         }
     }
