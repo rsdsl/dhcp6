@@ -46,7 +46,7 @@ impl Dhcp6 {
             duid: load_or_generate_duid()?,
             lease: lease.clone(),
 
-            xid: [0; 3],
+            xid: rand::random(),
             xts: Instant::now(),
             server_id: lease
                 .clone()
