@@ -101,6 +101,8 @@ fn load_lease_optional() -> Option<PdConfig> {
 async fn main() -> Result<()> {
     println!("[info] init");
 
+    sleep(Duration::from_secs(1)).await;
+
     let mut dhcp6 = Dhcp6::load_from_disk()?;
 
     let mut dhcp6c = Dhcp6c::new(
