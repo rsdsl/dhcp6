@@ -143,7 +143,7 @@ async fn main() -> Result<()> {
         if e.raw_os_error() == Some(19) {
             // "No such device" doesn't have an ErrorKind.
             already_up = false;
-            sleep(Duration::from_secs(8)).await;
+            sleep(Duration::from_secs(1)).await;
         } else {
             return Err(e.into());
         }
