@@ -164,13 +164,13 @@ async fn main() -> Result<()> {
                     Some(ds_config) if ds_config.v6.is_some() => {
                         println!("[info] <> ipv6 link up");
 
-                        // sock.bind_device(Some(INTERFACE.as_bytes()))?;
+                        sock.bind_device(Some(INTERFACE.as_bytes()))?;
                         dhcp6c.up();
                     }
                     _ => {
                         println!("[info] <> ipv6 link down");
 
-                        // sock.bind_device(None)?;
+                        sock.bind_device(None)?;
                         dhcp6c.down();
                     }
                 }
