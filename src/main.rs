@@ -188,6 +188,13 @@ async fn main() -> Result<()> {
                 }
             },
 
+            result = sock.recv_from(&mut buf) => {
+                let (n, _) = result?;
+                let buf = &buf[..n];
+
+                logged_handle(&mut dhcp6, &mut dhcp6c, buf);
+            }
+
             packet = dhcp6c.to_send() => send_dhcp6(&mut dhcp6, &sock, packet.0, packet.1).await,
 
             result = dhcp6c_rx.changed() => {
@@ -220,13 +227,6 @@ async fn main() -> Result<()> {
 
                     println!("[info] <> invalidate");
                 }
-            }
-
-            result = sock.recv_from(&mut buf) => {
-                let (n, _) = result?;
-                let buf = &buf[..n];
-
-                logged_handle(&mut dhcp6, &mut dhcp6c, buf);
             }
         }
     }
