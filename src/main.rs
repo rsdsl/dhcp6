@@ -156,6 +156,7 @@ async fn main() -> Result<()> {
 
     let mut buf = [0; 1500];
     loop {
+        println!("[dbg] loop select");
         tokio::select! {
             biased;
 
@@ -229,6 +230,7 @@ async fn main() -> Result<()> {
                 logged_handle(&mut dhcp6, &mut dhcp6c, buf);
             }
         }
+        println!("[dbg] loop end");
     }
 }
 
