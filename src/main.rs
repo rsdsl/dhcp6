@@ -222,8 +222,8 @@ async fn main() -> Result<()> {
                 }
             }
 
-            Ok(result) = sock.recv_from(&mut buf) => {
-                let (n, _) = result;
+            result = sock.recv_from(&mut buf) => {
+                let (n, _) = result?;
                 let buf = &buf[..n];
 
                 logged_handle(&mut dhcp6, &mut dhcp6c, buf);
