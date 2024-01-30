@@ -357,6 +357,11 @@ impl Dhcp6c {
     }
 
     fn rr(&mut self, mut lease: Lease, no_binding: bool) {
+        println!(
+            "[dbg] rr called: self={:?} lease={:?} no_bindig={:?}",
+            self, lease, no_binding
+        );
+
         match self.state {
             Dhcp6cState::Starting | Dhcp6cState::Opened => {} // illegal
             Dhcp6cState::Soliciting
