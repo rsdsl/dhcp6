@@ -51,7 +51,7 @@ impl Dhcp6 {
             server_id: lease
                 .clone()
                 .map(|lease| lease.server_id)
-                .unwrap_or(Vec::default()),
+                .unwrap_or_default(),
             last_sent: Packet::Advertise, // Can never occur naturally, forces XID generation.
             iapd: lease
                 .map(|lease| IAPD {
