@@ -384,7 +384,7 @@ dependencies = [
 
 [[package]]
 name = "rsdsl_dhcp6"
-version = "0.3.10-dev"
+version = "0.3.10"
 dependencies = [
  "dhcproto",
  "rand",
