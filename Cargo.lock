@@ -400,8 +400,8 @@ dependencies = [
 
 [[package]]
 name = "rsdsl_ip_config"
-version = "0.2.4"
-source = "git+https://github.com/rsdsl/ip_config.git#b68885346f4aa8a3216645c65e92f7c7a2c5ff51"
+version = "0.3.0"
+source = "git+https://github.com/rsdsl/ip_config.git#9bfd713a9edf9a31fb71095434195c3d0ea3097e"
 dependencies = [
  "serde",
 ]
