@@ -226,7 +226,6 @@ async fn main() -> Result<()> {
                 let (n, _) = result?;
                 let buf = &buf[..n];
 
-                println!("[dbg] got pkt {:?}", buf);
                 logged_handle(&mut dhcp6, &mut dhcp6c, buf);
             }
         }
