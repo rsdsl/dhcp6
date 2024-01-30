@@ -200,7 +200,7 @@ async fn main() -> Result<()> {
                     let mut file = File::create(rsdsl_pd_config::LOCATION)?;
                     serde_json::to_writer_pretty(&mut file, &pd_config)?;
 
-                    // inform();
+                    inform();
 
                     println!(
                         "[info] <> obtain lease {}/{} t1={} t2={} preflft={} validlft={} dns1={} dns2={} aftr={:?}",
@@ -216,7 +216,7 @@ async fn main() -> Result<()> {
                     );
                 } else {
                     fs::remove_file(rsdsl_pd_config::LOCATION)?;
-                    // inform();
+                    inform();
 
                     println!("[info] <> invalidate");
                 }
