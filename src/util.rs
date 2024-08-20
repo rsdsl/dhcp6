@@ -46,6 +46,10 @@ pub fn inform() {
     for dslite in System::new_all().processes_by_exact_name("rsdsl_dslite") {
         dslite.kill_with(Signal::User1);
     }
+
+    for netfilterd in System::new_all().processes_by_exact_name("rsdsl_netfilter") {
+        netfilterd.kill_with(Signal::User1);
+    }
 }
 
 pub fn hexdump<A: AsRef<[u8]>>(data: A) -> String {
